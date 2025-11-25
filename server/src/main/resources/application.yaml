@@ -1,0 +1,42 @@
+ktor:
+  deployment:
+    port: 8000
+    host: "127.0.0.1"
+  application:
+    modules:
+      - at.asitplus.walletprovider.ApplicationKt.module
+
+database:
+  url: "jdbc:h2:file:./data/statusdb;MODE=MYSQL;DB_CLOSE_DELAY=-1;"
+  driver: "org.h2.Driver"
+  exportInterval: "PT1M"
+
+keystore:
+  file: "keystore.p12"
+  alias: "CHANGEME"
+  secret: "CHANGEME"
+
+provider:
+  publicContext: "127.0.0.1"
+  clientId: "https://wallet.a-sit.at/app"
+  issuer: "https://wallet.a-sit.at"
+  providerName: "A-SIT Plus"
+  solutionId: "Valera"
+  solutionOid: "2.25.210184084534939142470042512176304499012"
+
+endpoints:
+  challenge: "/api/v1/challenge"
+  instance: "/api/v1/instance"
+  unit: "/api/v1/unit"
+  status: "/api/v1/status"
+  nonce: "/api/v1/nonce"
+  update: "/update"
+  root: "/"
+
+attestation:
+  android:
+    packageName: "at.asitplus.wallet.app.android"
+    signerFingerprint: "90f18fc8514fed2ec9e1f4924cc5de0ef8d7829661a77b923ac2eb5ae3e4a0f2"
+  ios:
+    teamIdentifier: "9CYHJNG644"
+    bundleIdentifier: "at.asitplus.wallet.compose"
