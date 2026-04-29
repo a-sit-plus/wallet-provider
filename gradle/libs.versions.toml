@@ -8,6 +8,7 @@ vck = "5.12.0"
 signum = "3.21.0"
 exposed = "1.2.0"
 h2 = "2.4.240"
+pgsql = "42.7.7"
 json = "1.11.0"
 napier = "2.7.1"
 
@@ -28,6 +29,7 @@ signum = { group = "at.asitplus.signum", name = "indispensable", version.ref = "
 exposed-core = { module = "org.jetbrains.exposed:exposed-core", version.ref = "exposed" }
 exposed-jdbc = { module = "org.jetbrains.exposed:exposed-jdbc", version.ref = "exposed" }
 h2 = { module = "com.h2database:h2", version.ref = "h2" }
+postgresql = { module = "org.postgresql:postgresql", version.ref = "pgsql" }
 napier = { module = "io.github.aakira:napier", version.ref = "napier" }
 
 [plugins]

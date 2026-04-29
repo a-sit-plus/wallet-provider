@@ -30,7 +30,8 @@ dependencies {
     implementation(libs.kotlin.json)
     implementation(libs.exposed.core)
     implementation(libs.exposed.jdbc)
-    implementation(libs.h2)
+    runtimeOnly(libs.h2)
+    runtimeOnly(libs.postgresql)
     implementation(libs.napier)
 
     testImplementation(libs.ktor.serverTestHost)
