@@ -15,11 +15,8 @@ data class ConfigData(
     val status = StatusListConfigData(config)
 
     val buildEndpointString: (List<String>) -> String = { paths ->
-        URLBuilder(
-            protocol = URLProtocol.HTTP,
-            host = provider.publicContext,
-            port = ktor.deployment.port.toInt()
-        ).appendPathSegments(paths)
+        URLBuilder(Url.invoke(provider.publicContext))
+        .appendPathSegments(paths)
             .buildString()
     }
 }
