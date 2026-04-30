@@ -46,7 +46,7 @@ interface AttestationService {
         when (verifyKeyAttestedKeys(csr)) {
             is AttestationResponse.Success -> {
                 val clientKey = csr.tbsCsr.publicKey.toJsonWebKey()
-                Napier.i("$clientKey")
+                Napier.i("Verified key $clientKey", tag = "AttestationService")
                 return@runCatching BuildInstanceAttestationJwt(
                     SignJwt(keyMaterial, JwsHeaderCertOrJwk()),
                     clientId = configData.provider.clientId,

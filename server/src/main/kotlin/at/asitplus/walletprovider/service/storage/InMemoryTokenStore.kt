@@ -24,7 +24,7 @@ class InMemoryTokenStore(
 
     val timer: Timer = Timer().also {
         it.schedule(0L, Duration.parse(configData.database.exportInterval).toMillis()) {
-            Napier.i("Scheduled database write.")
+            Napier.i("Scheduled database write.", tag = "InMemoryTokenStore")
             exportToDatabase()
         }
     }
