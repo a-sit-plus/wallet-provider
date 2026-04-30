@@ -3,9 +3,7 @@
 <div align="center">
 <img src="https://raw.githubusercontent.com/a-sit-plus/a-sit-plus.github.io/709e802b3e00cb57916cbb254ca5e1a5756ad2a8/A-SIT%20Plus_%20official_opt.svg" alt="A-SIT Plus Official" />
 <img src="https://img.shields.io/badge/license-Apache%20License%202.0-brightgreen.svg?style=flat" alt="GitHub license" />
-<img src="https://img.shields.io/badge/kotlin-multiplatform--mobile-orange.svg?logo=kotlin" alt="Kotlin" />
-<img src="https://img.shields.io/badge/kotlin-2.2.10-blue.svg?logo=kotlin" alt="Kotlin" />
-<img src="https://img.shields.io/maven-central/v/at.asitplus.authcheckkit/core" alt="Maven" />
+<img src="https://img.shields.io/badge/kotlin-2.3.21-blue.svg?logo=kotlin" alt="Kotlin" />
 </div>
 
 A Kotlin-based backend service for EUDI Wallet ecosystem attestation flows, providing challenges, token issuance, and status list management.
@@ -58,6 +56,14 @@ keytool -genkeypair -alias CHANGEME -keyalg EC -groupname secp256r1 -storetype P
 ```bash
 ./gradlew run
 ```
+
+### Docker
+In `docker-entrypoint.sh` the runtime logic of the Docker container is defined.
+The default behavior fetches a YAML config file (as defined above) from a composed url:
+```bash
+CONFIG_URL="${CONFIG_SERVER_URL}/${CONFIG_LABEL}/${CONFIG_APPLICATION}-${CONFIG_PROFILE}.yaml"
+```
+So adjust the `CONFIG_URL` and or the env vars to your needs.
 
 ## **Endpoints**
 
