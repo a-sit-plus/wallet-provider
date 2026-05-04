@@ -20,6 +20,7 @@ import at.asitplus.walletprovider.data.UnitAttestationRequest
 import io.github.aakira.napier.Napier
 import kotlinx.datetime.TimeZone
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonObject
@@ -50,16 +51,14 @@ interface AttestationService {
                 return@runCatching BuildInstanceAttestationJwt(
                     SignJwt(keyMaterial, JwsHeaderCertOrJwk()),
                     clientId = configData.provider.clientId,
-                    issuer = configData.provider.issuer,
                     lifetime = 60.minutes,
                     clientKey = clientKey,
-                    walletInfo = EudiWalletInfo(
-                        GeneralInfo(
-                            walletProviderName = configData.provider.providerName,
-                            walletSolutionId = configData.provider.solutionId,
-                            walletSolutionVersion = walletSolutionVersion,
-                            walletSolutionCertificationInformation = configData.provider.solutionCertificationInfo
-                        )
+                    walletName = configData.provider.solutionId,
+                    walletVersion = walletSolutionVersion,
+                    walletSolutionCertificationInformation = configData.provider.solutionCertificationInfo,
+                    clientStatus = ClientStatus(
+                        status = statusListReference(idx = 0),
+                        expiration = Clock.System.now() + 31.days,
                     )
                 )
             }
@@ -91,44 +90,19 @@ interface AttestationService {
             deserializationStrategy = JsonWebToken.Companion.serializer(),
         ).getOrThrow()
 
-        val walletSolutionVersion = token.payload.eudiWalletInfo?.generalInfo?.walletSolutionVersion ?: throw Throwable(
-            "walletSolutionVersion not found"
-        )
-
         when (verifyInstanceAttestation(token, proof).getOrDefault(false)) {
             true -> {
                 return@runCatching BuildUnitAttestationJwt(
                     SignJwt(keyMaterial, JwsHeaderCertOrJwk()),
-                    clientId = configData.provider.clientId,
-                    issuer = configData.provider.issuer,
                     lifetime = 40.days,
-                    walletInfo = EudiWalletInfo(
-                        GeneralInfo(
-                            walletProviderName = configData.provider.providerName,
-                            walletSolutionId = configData.provider.solutionId,
-                            walletSolutionVersion = walletSolutionVersion,
-                            walletSolutionCertificationInformation = configData.provider.solutionCertificationInfo
-                        ), KeyStorageInfo(
-                            storageType = request.storageType,
-                            storageCertificationInformation = configData.provider.storageCertificationInfo,
-                        )
-                    ),
-                    status = buildJsonObject { // because is JsonObject in data class
-                        putJsonObject("status_list")
-                        {
-                            put("idx", idx)
-                            put(
-                                "uri",
-                                configData.buildEndpointString(
-                                    listOf(
-                                        configData.endpoint.status,
-                                        configData.status.fixedTimePeriod.toString()
-                                    )
-                                )
-                            )
-                        }
-                    },
                     attestedKeys = request.keys,
+                    keyStorage = request.keyStorage,
+                    userAuthentication = request.userAuthentication,
+                    certification = configData.provider.storageCertificationInfo,
+                    keyStorageStatus = KeyStorageStatus(
+                        status = statusListReference(idx),
+                        expiration = Clock.System.now() + 31.days,
+                    ),
                 )
             }
 
@@ -142,6 +116,21 @@ interface AttestationService {
     suspend fun issueChallenge(): String
     suspend fun getNonce() = nonceService.provideNonce()
     suspend fun verifyNonce(nonce: String) = nonceService.verifyAndRemoveNonce(nonce)
+
+    fun statusListReference(idx: Int): JsonObject = buildJsonObject {
+        putJsonObject("status_list") {
+            put("idx", idx)
+            put(
+                "uri",
+                configData.buildEndpointString(
+                    listOf(
+                        configData.endpoint.status,
+                        configData.status.fixedTimePeriod.toString()
+                    )
+                )
+            )
+        }
+    }
 }
 
 class RealAttestationService(

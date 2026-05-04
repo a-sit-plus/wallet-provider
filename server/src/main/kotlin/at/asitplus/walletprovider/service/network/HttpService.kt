@@ -1,11 +1,11 @@
 package at.asitplus.walletprovider.service.network
 
 import at.asitplus.openid.ClientNonceResponse
+import at.asitplus.signum.indispensable.josef.io.joseCompliantSerializer
 import at.asitplus.signum.indispensable.pki.Pkcs10CertificationRequest
 import at.asitplus.wallet.lib.agent.StatusListAgent
 import at.asitplus.wallet.lib.data.rfc.tokenStatusList.RevocationList
 import at.asitplus.wallet.lib.data.rfc.tokenStatusList.primitives.TokenStatus
-import at.asitplus.wallet.lib.data.vckJsonSerializer
 import at.asitplus.walletprovider.data.ConfigData
 import at.asitplus.walletprovider.data.UnitAttestationRequest
 import at.asitplus.walletprovider.data.template.StatusFormTemplate
@@ -73,8 +73,8 @@ class HttpService(
 
     suspend fun handleUnitRequest(request: String) = runCatching {
         Napier.i("Start Unit Attestation", tag = "HttpService")
-        val idx = tokenStore.getNextFreeIndex(1) ?: throw Throwable("Unable to get next free index!")
-        attestationService.buildUnitAttestation(vckJsonSerializer.decodeFromString<UnitAttestationRequest>(request), idx)
+        val idx = tokenStore.getNextFreeIndex(1)
+        attestationService.buildUnitAttestation(joseCompliantSerializer.decodeFromString<UnitAttestationRequest>(request), idx)
             .getOrThrow()
             .serialize()
             .also {

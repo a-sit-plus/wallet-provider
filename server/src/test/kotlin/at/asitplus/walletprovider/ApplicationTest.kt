@@ -121,7 +121,8 @@ class ApplicationTest {
             token = instanceAttestation.serialize(),
             proof = instancePop.serialize(),
             keys = listOf(unitKey.jsonWebKey),
-            storageType = "LOCAL_NATIVE"
+            keyStorage = setOf("iso_18045_high"),
+            userAuthentication = setOf("iso_18045_high"),
 
         )
 
@@ -131,5 +132,8 @@ class ApplicationTest {
             true
         )
         assertEquals(unitAttestation.payload.attestedKeys.first(), unitKey.jsonWebKey)
+        assertEquals(setOf("iso_18045_high"), unitAttestation.payload.keyStorage)
+        assertEquals(setOf("iso_18045_high"), unitAttestation.payload.userAuthentication)
+        assertEquals(attestationService.statusListReference(0), unitAttestation.payload.keyStorageStatus?.status)
     }
 }
