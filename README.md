@@ -31,10 +31,10 @@ keytool -genkeypair -alias CHANGEME -keyalg EC -groupname secp256r1 -storetype P
 |                         | secrect           | Secrect to unlock keystore file                                                          |
 | **provider**            |                   |                                                                                          |
 |                         | publicContext     | Public base url                                                                          |
-|                         | clientId          | Value used as the subject field in the attestation jwts                                  |
-|                         | issuer            | Value used for the jwt issuer field in the attestation jwts                              |
-|                         | providerName      | Used for the `EudiWalletInfo` data class                                                 |
-|                         | solutionId        | Used for the `EudiWalletInfo` data class                                                 |
+|                         | clientId          | Value used as the WIA subject/client identifier                                          |
+|                         | issuer            | Provider/certification URL used in certification information fields                       |
+|                         | providerName      | Provider display name                                                                    |
+|                         | solutionId        | Value used as the WIA `wallet_name` claim                                                |
 |                         | solutionOid       | Identifies additional information in the csr attributes                                  |
 | **endpoints**           |                   |                                                                                          |
 |                         | challenge         | Endpoint for the wallet solution to request a attestation challenge via `warden-supreme` |
@@ -75,6 +75,31 @@ So adjust the `CONFIG_URL` and or the env vars to your needs.
 | `/api/v1/nonce`     | GET    | Nonce for client authentication           |
 | `/api/v1/instance`  | POST   | JSON-encoded `InstanceAttestationRequest` |
 | `/api/v1/unit`      | POST   | JSON-encoded `UnitAttestationRequest`     |
+
+`/api/v1/instance` returns a Wallet Instance Attestation using VC-K's current client attestation builder. The JWT
+contains `wallet_name`, `wallet_version`, `wallet_solution_certification_information`, and `client_status`; it does
+not emit the removed `iss`, `eudi_wallet_info`, or top-level `status` claims.
+
+`/api/v1/unit` returns a Key Attestation. The request body uses TS3/OID4VCI key storage fields:
+
+```json
+{
+  "token": "<wallet-instance-attestation-jwt>",
+  "proof": "<client-attestation-pop-jwt>",
+  "keys": [
+    {
+      "kty": "EC",
+      "...": "..."
+    }
+  ],
+  "key_storage": ["iso_18045_high"],
+  "user_authentication": ["iso_18045_high"]
+}
+```
+
+The Key Attestation contains `attested_keys`, `key_storage`, `user_authentication`, `certification`, and
+`key_storage_status`. It does not emit the removed `iss`, `eudi_wallet_info`, `storage_type`, or top-level `status`
+claims.
 
 ### Revocations Status Endpoints
 
