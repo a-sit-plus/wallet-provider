@@ -29,7 +29,7 @@ class HttpService(
     val attestationService: AttestationService,
 ) {
     suspend fun handleStatusRequest() = runCatching {
-        Napier.i("Issuing StatusListJwt")
+        Napier.i("Issuing StatusListJwt", tag = "HttpService")
         statusListAgent.issueStatusListJwt(kind = RevocationList.Kind.STATUS_LIST)
     }
 
@@ -52,12 +52,12 @@ class HttpService(
     }
 
     suspend fun handleChallengeRequest() = runCatching {
-        Napier.i("Issuing Challenge")
+        Napier.i("Issuing Challenge", tag = "HttpService")
         attestationService.issueChallenge()
     }
 
     suspend fun handleNonceRequest() = runCatching {
-        Napier.i("Issuing Nonce")
+        Napier.i("Issuing Nonce", tag = "HttpService")
 
         attestationService.getNonce().let {
             Json.encodeToString(ClientNonceResponse(it))
@@ -65,14 +65,14 @@ class HttpService(
     }
 
     suspend fun handleInstanceRequest(request: ByteArray) = runCatching {
-        Napier.i("Start Instance Attestation")
+        Napier.i("Start Instance Attestation", tag = "HttpService")
         Pkcs10CertificationRequest.decodeFromDer(request).let { csr ->
             attestationService.buildInstanceAttestation(csr).getOrThrow()
         }
     }
 
     suspend fun handleUnitRequest(request: String) = runCatching {
-        Napier.i("Start Unit Attestation")
+        Napier.i("Start Unit Attestation", tag = "HttpService")
         val idx = tokenStore.getNextFreeIndex(1) ?: throw Throwable("Unable to get next free index!")
         attestationService.buildUnitAttestation(vckJsonSerializer.decodeFromString<UnitAttestationRequest>(request), idx)
             .getOrThrow()
