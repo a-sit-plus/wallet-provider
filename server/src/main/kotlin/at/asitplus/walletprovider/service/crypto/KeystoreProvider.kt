@@ -25,8 +25,13 @@ class RealKeyStoreProvider(val config: ConfigData) : KeyStoreProvider {
         val keyStore = File(config.keystore.file).inputStream()
             .use { KeyStore.getInstance("PKCS12").apply { load(it, config.keystore.secret.toCharArray()) } }
         val privateKey =
-            (keyStore.getKey(config.keystore.alias, config.keystore.secret.toCharArray()) as PrivateKey).toCryptoPrivateKey().getOrThrow()
-        val certificate = (keyStore.getCertificate(config.keystore.alias) as java.security.cert.X509Certificate).toKmpCertificate().getOrThrow()
+            (keyStore.getKey(
+                config.keystore.alias,
+                config.keystore.secret.toCharArray()
+            ) as PrivateKey).toCryptoPrivateKey().getOrThrow()
+        val certificate =
+            (keyStore.getCertificate(config.keystore.alias) as java.security.cert.X509Certificate).toKmpCertificate()
+                .getOrThrow()
         val signer: Signer = SignatureAlgorithm.ECDSAwithSHA256.signerFor(privateKey).getOrThrow()
         ProviderKeyMaterial(signer, certificate)
     }.getOrElse { e ->

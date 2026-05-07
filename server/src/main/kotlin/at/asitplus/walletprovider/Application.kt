@@ -40,8 +40,17 @@ fun Application.moduleServer() {
                     call.respond(HttpStatusCode.BadRequest, it.toString())
                 }
             }
-            get("${provider.configData.endpoint.status}/{period}") {
-                provider.httpService.handleStatusRequest().onSuccess {
+            get("${provider.configData.endpoint.keyStorageStatus}/{period}") {
+                val period: Int? = runCatching { call.parameters["period"]?.toInt() }.getOrNull()
+                provider.httpService.handleKeyStorageStatusRequest(period).onSuccess {
+                    call.respondText(text = it.serialize())
+                }.onFailure {
+                    call.respond(HttpStatusCode.BadRequest, it.toString())
+                }
+            }
+            get("${provider.configData.endpoint.clientStatus}/{period}") {
+                val period: Int? = runCatching { call.parameters["period"]?.toInt() }.getOrNull()
+                provider.httpService.handleClientStatusRequest(period).onSuccess {
                     call.respondText(text = it.serialize())
                 }.onFailure {
                     call.respond(HttpStatusCode.BadRequest, it.toString())
@@ -61,16 +70,16 @@ fun Application.moduleServer() {
                     call.respond(HttpStatusCode.BadRequest, it.toString())
                 }
             }
-            post(provider.configData.endpoint.instance) {
+            post(provider.configData.endpoint.instanceAttestation) {
                 provider.httpService.handleInstanceRequest(call.receive<ByteArray>()).onSuccess {
                     call.respondText(it.serialize())
                 }.onFailure {
                     call.respond(HttpStatusCode.BadRequest, it.toString())
                 }
             }
-            post(provider.configData.endpoint.unit) {
-                provider.httpService.handleUnitRequest(call.receive<String>()).onSuccess {
-                    call.respondText(it)
+            post(provider.configData.endpoint.keyAttestation) {
+                provider.httpService.handleKeyAttestationRequest(call.receive<String>()).onSuccess {
+                    call.respondText(it.serialize())
                 }.onFailure {
                     call.respond(HttpStatusCode.BadRequest, it.toString())
                 }

@@ -3,47 +3,46 @@ package at.asitplus.walletprovider.service.network
 import at.asitplus.openid.ClientNonceResponse
 import at.asitplus.signum.indispensable.josef.io.joseCompliantSerializer
 import at.asitplus.signum.indispensable.pki.Pkcs10CertificationRequest
-import at.asitplus.wallet.lib.agent.StatusListAgent
 import at.asitplus.wallet.lib.data.rfc.tokenStatusList.RevocationList
 import at.asitplus.wallet.lib.data.rfc.tokenStatusList.primitives.TokenStatus
 import at.asitplus.walletprovider.data.ConfigData
-import at.asitplus.walletprovider.data.UnitAttestationRequest
+import at.asitplus.walletprovider.data.KeyAttestationRequest
 import at.asitplus.walletprovider.data.template.StatusFormTemplate
 import at.asitplus.walletprovider.service.crypto.AttestationService
-import at.asitplus.walletprovider.service.storage.DatabaseService
-import at.asitplus.walletprovider.service.storage.InMemoryTokenStore
+import at.asitplus.walletprovider.service.storage.ClientTokenStoreService
+import at.asitplus.walletprovider.service.storage.KeyStorageTokenStoreService
 import at.asitplus.walletprovider.service.storage.getMap
 import io.github.aakira.napier.Napier
 import io.ktor.http.*
 import io.ktor.util.*
 import kotlinx.serialization.json.Json
-import java.time.Duration
-import java.util.Timer
-import kotlin.concurrent.schedule
-import kotlin.time.Duration.Companion.minutes
 
 class HttpService(
-    val statusListAgent: StatusListAgent,
     val configData: ConfigData,
-    val tokenStore: InMemoryTokenStore,
+    val clientTokenStoreService: ClientTokenStoreService,
+    val keyStorageTokenStoreService: KeyStorageTokenStoreService,
     val attestationService: AttestationService,
 ) {
-    suspend fun handleStatusRequest() = runCatching {
+    suspend fun handleKeyStorageStatusRequest(period: Int?) = runCatching {
+        keyStorageTokenStoreService.statusListAgent.issueStatusListJwt(kind = RevocationList.Kind.STATUS_LIST)
+    }
+
+    suspend fun handleClientStatusRequest(period: Int?) = runCatching {
         Napier.i("Issuing StatusListJwt", tag = "HttpService")
-        statusListAgent.issueStatusListJwt(kind = RevocationList.Kind.STATUS_LIST)
+        clientTokenStoreService.statusListAgent.issueStatusListJwt(kind = RevocationList.Kind.STATUS_LIST)
     }
 
     suspend fun handleRootRequest() = runCatching {
         StatusFormTemplate(
             endpoint = configData.endpoint.update,
-            data = tokenStore.getStatusListView(configData.status.fixedTimePeriod)
+            data = keyStorageTokenStoreService.tokenStore.getStatusListView(configData.status.fixedTimePeriod)
                 .getMap()
         )
     }
 
     suspend fun handleUpdateRequest(params: Parameters) = runCatching {
         params.flattenEntries().forEach {
-            tokenStore.setStatus(
+            keyStorageTokenStoreService.tokenStore.setStatus(
                 configData.status.fixedTimePeriod,
                 it.first.toULong(),
                 TokenStatus(it.second.toUInt())
@@ -66,23 +65,31 @@ class HttpService(
 
     suspend fun handleInstanceRequest(request: ByteArray) = runCatching {
         Napier.i("Start Instance Attestation", tag = "HttpService")
+        val idx = clientTokenStoreService.tokenStore.getNextFreeIndex(1)
         Pkcs10CertificationRequest.decodeFromDer(request).let { csr ->
-            attestationService.buildInstanceAttestation(csr).getOrThrow()
-        }
-    }
-
-    suspend fun handleUnitRequest(request: String) = runCatching {
-        Napier.i("Start Unit Attestation", tag = "HttpService")
-        val idx = tokenStore.getNextFreeIndex(1)
-        attestationService.buildUnitAttestation(joseCompliantSerializer.decodeFromString<UnitAttestationRequest>(request), idx)
-            .getOrThrow()
-            .serialize()
-            .also {
-                tokenStore.setStatus(
+            attestationService.buildInstanceAttestation(csr, idx).onSuccess {
+                clientTokenStoreService.tokenStore.setStatus(
                     configData.status.fixedTimePeriod,
                     idx.toULong(),
                     TokenStatus.Valid
                 )
-            }
+            }.getOrThrow()
+        }
+    }
+
+    suspend fun handleKeyAttestationRequest(request: String) = runCatching {
+        Napier.i("Start KeyAttestation", tag = "HttpService")
+        val idx = keyStorageTokenStoreService.tokenStore.getNextFreeIndex(1)
+        attestationService.buildKeyAttestation(
+            joseCompliantSerializer.decodeFromString<KeyAttestationRequest>(request),
+            idx
+        )
+            .onSuccess {
+                keyStorageTokenStoreService.tokenStore.setStatus(
+                    configData.status.fixedTimePeriod,
+                    idx.toULong(),
+                    TokenStatus.Valid
+                )
+            }.getOrThrow()
     }
 }

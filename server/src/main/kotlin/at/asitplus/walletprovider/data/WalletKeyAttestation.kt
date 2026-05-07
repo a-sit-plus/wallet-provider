@@ -1,5 +1,6 @@
 package at.asitplus.walletprovider.data
 
+import at.asitplus.openid.DurationSecondsIntSerializer
 import at.asitplus.openid.OpenIdConstants
 import at.asitplus.signum.indispensable.josef.JsonWebKey
 import at.asitplus.signum.indispensable.josef.KeyAttestationJwt
@@ -13,7 +14,7 @@ import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.ExperimentalTime
 
-object BuildUnitAttestationJwt {
+object BuildKeyAttestationJwt {
     @OptIn(ExperimentalTime::class)
     suspend operator fun invoke(
         signJwt: SignJwtFun<KeyAttestationJwt>,
@@ -37,15 +38,20 @@ object BuildUnitAttestationJwt {
             keyStorageStatus = keyStorageStatus,
             nonce = nonce,
         ),
-        KeyAttestationJwt.Companion.serializer(),
+        KeyAttestationJwt.serializer(),
     ).getOrThrow()
 }
 
 @Serializable
-data class UnitAttestationRequest(
+data class KeyAttestationRequest(
     @SerialName("token") val token: String,
     @SerialName("proof") val proof: String,
     @SerialName("keys") val keys: List<JsonWebKey>,
+    @SerialName("nonce") val nonce: String?,
     @SerialName("key_storage") val keyStorage: Set<String>,
     @SerialName("user_authentication") val userAuthentication: Set<String>,
+    @SerialName("preferred_key_storage_status_period")
+    @Serializable(with = DurationSecondsIntSerializer::class)
+    val preferredKeyStorageStatusPeriod: Duration?,
+    @SerialName("supported_algorithms") val supportedAlgorithms: Collection<String>?,
 )

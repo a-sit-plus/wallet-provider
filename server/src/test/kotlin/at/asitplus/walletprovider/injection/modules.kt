@@ -1,28 +1,43 @@
 package at.asitplus.walletprovider.injection
 
 import at.asitplus.wallet.lib.agent.KeyMaterial
-import at.asitplus.wallet.lib.agent.StatusListAgent
 import at.asitplus.walletprovider.data.ConfigData
 import at.asitplus.walletprovider.service.crypto.AttestationService
 import at.asitplus.walletprovider.service.crypto.KeyStoreProvider
 import at.asitplus.walletprovider.service.crypto.MockAttestationService
 import at.asitplus.walletprovider.service.crypto.MockKeyStoreProvider
+import at.asitplus.walletprovider.service.storage.ClientTokenStoreService
+import at.asitplus.walletprovider.service.storage.DatabaseService
 import at.asitplus.walletprovider.service.storage.InMemoryTokenStore
+import at.asitplus.walletprovider.service.storage.KeyStorageTokenStoreService
 import io.ktor.server.config.*
+import kotlin.time.Duration
 
 fun injectDependencies(config: ApplicationConfig) {
-    DependencyInjector.single { ConfigData(config) }
+    DependencyInjector.single<ConfigData> { ConfigData(config) }
+    DependencyInjector.single<DatabaseService> { DatabaseService(inject()) }
     DependencyInjector.single<KeyStoreProvider>(::MockKeyStoreProvider)
-    DependencyInjector.single{InMemoryTokenStore(configData = inject(), databaseService = inject())}
-    DependencyInjector.single<KeyMaterial> { inject<KeyStoreProvider>().getSigner() }
-    DependencyInjector.single {
-        val configData: ConfigData = inject()
-        val statusListBaseUrl = configData.buildEndpointString(listOf(configData.endpoint.status))
-        StatusListAgent(
-            statusListBaseUrl = statusListBaseUrl,
+    DependencyInjector.factory<InMemoryTokenStore> { InMemoryTokenStore() }
+    DependencyInjector.single<ClientTokenStoreService> {
+        val configData = inject<ConfigData>()
+        ClientTokenStoreService(
+            tokenStore = inject(),
+            databaseService = inject(),
             keyMaterial = inject(),
-            issuerCredentialStore = inject<InMemoryTokenStore>()
+            statusListBaseUrl = configData.buildEndpointString(listOf(configData.endpoint.clientStatus)),
+            exportInterval = Duration.parse(configData.database.exportInterval)
         )
     }
+    DependencyInjector.single<KeyStorageTokenStoreService> {
+        val configData = inject<ConfigData>()
+        KeyStorageTokenStoreService(
+            tokenStore = inject(),
+            databaseService = inject(),
+            keyMaterial = inject(),
+            statusListBaseUrl = configData.buildEndpointString(listOf(configData.endpoint.keyStorageStatus)),
+            exportInterval = Duration.parse(configData.database.exportInterval)
+        )
+    }
+    DependencyInjector.single<KeyMaterial> { inject<KeyStoreProvider>().getSigner() }
     DependencyInjector.single<AttestationService> { MockAttestationService(inject(), inject()) }
 }

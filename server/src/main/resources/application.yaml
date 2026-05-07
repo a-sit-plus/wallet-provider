@@ -17,7 +17,7 @@ keystore:
   secret: "CHANGEME"
 
 provider:
-  publicContext: "127.0.0.1"
+  publicContext: "https://wallet-provider.a-sit.plus"
   clientId: "https://wallet.a-sit.at/app"
   issuer: "https://wallet.a-sit.at"
   providerName: "A-SIT Plus"
@@ -26,14 +26,21 @@ provider:
 
 endpoints:
   challenge: "/api/v1/challenge"
-  instance: "/api/v1/instance"
-  unit: "/api/v1/unit"
-  status: "/api/v1/status"
+  instanceAttestation: "/api/v1/instanceAttestation"
+  keyAttestation: "/api/v1/keyAttestation"
+  clientStatus: "/api/v1/clientStatus"
+  keyStorageStatus: "/api/v1/keyStorageStatus"
   nonce: "/api/v1/nonce"
   update: "/update"
   root: "/"
 
 attestation:
+  keyAttestation:
+    maintenance: "P60D"
+    lifetime: "PT12H"
+  instanceAttestation:
+    maintenance: "P60D"
+    lifetime: "PT12H"
   android:
     packageName: "at.asitplus.wallet.app.android"
     signerFingerprint: "90f18fc8514fed2ec9e1f4924cc5de0ef8d7829661a77b923ac2eb5ae3e4a0f2"
