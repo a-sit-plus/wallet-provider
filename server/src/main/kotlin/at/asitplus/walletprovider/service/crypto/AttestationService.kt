@@ -5,6 +5,7 @@ import at.asitplus.attestation.android.AndroidAttestationConfiguration
 import at.asitplus.attestation.supreme.AttestationResponse
 import at.asitplus.attestation.supreme.AttestationVerifier
 import at.asitplus.attestation.supreme.SupremeConfiguration
+import at.asitplus.openid.OpenIdConstants
 import at.asitplus.signum.indispensable.asn1.Asn1Primitive
 import at.asitplus.signum.indispensable.josef.*
 import at.asitplus.signum.indispensable.josef.io.joseCompliantSerializer
@@ -13,9 +14,9 @@ import at.asitplus.wallet.lib.DefaultNonceService
 import at.asitplus.wallet.lib.agent.KeyMaterial
 import at.asitplus.wallet.lib.jws.JwsHeaderCertOrJwk
 import at.asitplus.wallet.lib.jws.SignJwt
+import at.asitplus.wallet.lib.jws.SignJwtFun
 import at.asitplus.wallet.lib.jws.VerifyJwsSignature
 import at.asitplus.wallet.lib.oidvci.BuildClientAttestationJwt
-import at.asitplus.walletprovider.data.BuildKeyAttestationJwt
 import at.asitplus.walletprovider.data.ConfigData
 import at.asitplus.walletprovider.data.InstanceAttestationRequest
 import at.asitplus.walletprovider.data.KeyAttestationRequest
@@ -23,6 +24,10 @@ import io.github.aakira.napier.Napier
 import kotlinx.datetime.TimeZone
 import kotlinx.serialization.json.*
 import kotlin.time.Clock
+import kotlin.time.Clock.System.now
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.ExperimentalTime
 
 interface AttestationService {
@@ -133,6 +138,34 @@ interface AttestationService {
                 )
             )
         }
+    }
+
+    object BuildKeyAttestationJwt {
+        @OptIn(ExperimentalTime::class)
+        suspend operator fun invoke(
+            signJwt: SignJwtFun<KeyAttestationJwt>,
+            attestedKeys: List<JsonWebKey>,
+            keyStorage: Collection<String>,
+            userAuthentication: Collection<String>,
+            certification: String,
+            keyStorageStatus: KeyStorageStatus,
+            nonce: String? = null,
+            lifetime: Duration = 40.days,
+            clockSkew: Duration = 5.minutes,
+        ) = signJwt(
+            OpenIdConstants.KEY_ATTESTATION_JWT_TYPE,
+            KeyAttestationJwt(
+                issuedAt = now() - clockSkew,
+                expiration = now() - clockSkew + lifetime,
+                attestedKeys = attestedKeys,
+                keyStorage = keyStorage,
+                userAuthentication = userAuthentication,
+                certification = certification,
+                keyStorageStatus = keyStorageStatus,
+                nonce = nonce,
+            ),
+            KeyAttestationJwt.serializer(),
+        ).getOrThrow()
     }
 }
 
