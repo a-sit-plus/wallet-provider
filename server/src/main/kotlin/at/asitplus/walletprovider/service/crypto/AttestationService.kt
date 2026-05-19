@@ -12,6 +12,8 @@ import at.asitplus.signum.indispensable.josef.io.joseCompliantSerializer
 import at.asitplus.signum.indispensable.pki.Pkcs10CertificationRequest
 import at.asitplus.wallet.lib.DefaultNonceService
 import at.asitplus.wallet.lib.agent.KeyMaterial
+import at.asitplus.wallet.lib.data.rfc.tokenStatusList.StatusListInfo
+import at.asitplus.wallet.lib.data.rfc3986.toUri
 import at.asitplus.wallet.lib.jws.JwsHeaderCertOrJwk
 import at.asitplus.wallet.lib.jws.SignJwt
 import at.asitplus.wallet.lib.jws.SignJwtFun
@@ -22,7 +24,10 @@ import at.asitplus.walletprovider.data.InstanceAttestationRequest
 import at.asitplus.walletprovider.data.KeyAttestationRequest
 import io.github.aakira.napier.Napier
 import kotlinx.datetime.TimeZone
-import kotlinx.serialization.json.*
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.encodeToJsonElement
 import kotlin.time.Clock
 import kotlin.time.Clock.System.now
 import kotlin.time.Duration
@@ -66,7 +71,7 @@ interface AttestationService {
                     walletSolutionCertificationInformation = configData.provider.solutionCertificationInfo,
                     clientStatus = ClientStatus(
                         status = statusListReference(idx = idx, configData.endpoint.clientStatus),
-                        expiration = Clock.System.now() + configData.attestation.instanceAttestation.maintenance,
+                        expiration = now() + configData.attestation.instanceAttestation.maintenance,
                     )
                 )
             }
@@ -109,15 +114,15 @@ interface AttestationService {
                     certification = configData.provider.storageCertificationInfo,
                     keyStorageStatus = KeyStorageStatus(
                         status = statusListReference(idx, configData.endpoint.keyStorageStatus),
-                        expiration = Clock.System.now() + configData.attestation.keyAttestation.maintenance,
+                        expiration = now() + configData.attestation.keyAttestation.maintenance,
                     ),
                 )
             }
 
             false -> {
-
                 throw Throwable("InstanceAttestation invalid")
             }
+
         }
     }
 
@@ -126,18 +131,9 @@ interface AttestationService {
     suspend fun verifyNonce(nonce: String) = nonceService.verifyAndRemoveNonce(nonce)
 
     fun statusListReference(idx: Int, endpoint: String): JsonObject = buildJsonObject {
-        putJsonObject("status_list") {
-            put("idx", idx)
-            put(
-                "uri",
-                configData.buildEndpointString(
-                    listOf(
-                        endpoint,
-                        configData.status.fixedTimePeriod.toString()
-                    )
-                )
-            )
-        }
+        put(key = "status_list", element = joseCompliantSerializer.encodeToJsonElement(
+            StatusListInfo(index = idx.toULong(), endpoint.toUri()))
+        )
     }
 
     object BuildKeyAttestationJwt {
