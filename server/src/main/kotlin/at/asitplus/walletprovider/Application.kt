@@ -41,16 +41,16 @@ fun Application.moduleServer() {
                 }
             }
             get("${provider.configData.endpoint.keyStorageStatus}/{period}") {
-                val period: Int? = runCatching { call.parameters["period"]?.toInt() }.getOrNull()
-                provider.httpService.handleKeyStorageStatusRequest(period).onSuccess {
+                // TODO: Add period handling
+                provider.httpService.handleKeyStorageStatusRequest().onSuccess {
                     call.respondText(text = it.serialize())
                 }.onFailure {
                     call.respond(HttpStatusCode.BadRequest, it.toString())
                 }
             }
             get("${provider.configData.endpoint.clientStatus}/{period}") {
-                val period: Int? = runCatching { call.parameters["period"]?.toInt() }.getOrNull()
-                provider.httpService.handleClientStatusRequest(period).onSuccess {
+                // TODO: Add period handling
+                provider.httpService.handleClientStatusRequest().onSuccess {
                     call.respondText(text = it.serialize())
                 }.onFailure {
                     call.respond(HttpStatusCode.BadRequest, it.toString())

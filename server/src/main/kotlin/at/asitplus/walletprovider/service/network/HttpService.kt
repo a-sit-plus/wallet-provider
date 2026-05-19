@@ -16,6 +16,7 @@ import io.github.aakira.napier.Napier
 import io.ktor.http.*
 import io.ktor.util.*
 import kotlinx.serialization.json.Json
+import kotlin.time.Instant
 
 class HttpService(
     val configData: ConfigData,
@@ -23,13 +24,12 @@ class HttpService(
     val keyStorageTokenStoreService: KeyStorageTokenStoreService,
     val attestationService: AttestationService,
 ) {
-    suspend fun handleKeyStorageStatusRequest(period: Int?) = runCatching {
-        keyStorageTokenStoreService.statusListAgent.issueStatusListJwt(kind = RevocationList.Kind.STATUS_LIST)
+    suspend fun handleKeyStorageStatusRequest(time: Instant? = null) = runCatching {
+        keyStorageTokenStoreService.statusListAgent.issueStatusListJwt(kind = RevocationList.Kind.STATUS_LIST, time = time)
     }
 
-    suspend fun handleClientStatusRequest(period: Int?) = runCatching {
-        Napier.i("Issuing StatusListJwt", tag = "HttpService")
-        clientTokenStoreService.statusListAgent.issueStatusListJwt(kind = RevocationList.Kind.STATUS_LIST)
+    suspend fun handleClientStatusRequest(time: Instant? = null) = runCatching {
+        clientTokenStoreService.statusListAgent.issueStatusListJwt(kind = RevocationList.Kind.STATUS_LIST, time = time)
     }
 
     suspend fun handleRootRequest() = runCatching {
