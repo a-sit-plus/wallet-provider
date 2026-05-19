@@ -65,7 +65,7 @@ class HttpService(
 
     suspend fun handleInstanceRequest(request: ByteArray) = runCatching {
         Napier.i("Start Instance Attestation", tag = "HttpService")
-        val idx = clientTokenStoreService.tokenStore.getNextFreeIndex(1)
+        val idx = clientTokenStoreService.tokenStore.getNextFreeIndex(configData.status.fixedTimePeriod)
         Pkcs10CertificationRequest.decodeFromDer(request).let { csr ->
             attestationService.buildInstanceAttestation(csr, idx).onSuccess {
                 clientTokenStoreService.tokenStore.setStatus(
@@ -79,7 +79,7 @@ class HttpService(
 
     suspend fun handleKeyAttestationRequest(request: String) = runCatching {
         Napier.i("Start KeyAttestation", tag = "HttpService")
-        val idx = keyStorageTokenStoreService.tokenStore.getNextFreeIndex(1)
+        val idx = keyStorageTokenStoreService.tokenStore.getNextFreeIndex(configData.status.fixedTimePeriod)
         attestationService.buildKeyAttestation(
             joseCompliantSerializer.decodeFromString<KeyAttestationRequest>(request),
             idx
