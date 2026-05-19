@@ -21,7 +21,7 @@ class DatabaseService(config: ConfigData) {
         }
     }
 
-    object KeyStorageStatusLists : Table("status_lists") {
+    object KeyStorageStatusLists : Table("key_storage_status") {
         val timePeriod = integer("time_period")
         val data = binary("data")
         val counter = integer("counter")
