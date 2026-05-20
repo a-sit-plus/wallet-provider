@@ -15,13 +15,6 @@ interface TokenStoreService {
     val statusListBaseUrl: String
     val exportInterval: Duration
 
-    val statusListAgent: StatusListAgent
-        get() = StatusListAgent(
-            keyMaterial = keyMaterial,
-            statusListBaseUrl = statusListBaseUrl,
-            issuerCredentialStore = tokenStore
-        )
-
     fun loadFromDatabase(): Result<Map<Int, Pair<Int, StatusListView>>>
     fun exportToDatabase()
 
@@ -47,6 +40,12 @@ class ClientTokenStoreService(
     override val statusListBaseUrl: String,
     override val exportInterval: Duration
 ) : TokenStoreService {
+    val statusListAgent: StatusListAgent = StatusListAgent(
+        keyMaterial = keyMaterial,
+        statusListBaseUrl = statusListBaseUrl,
+        issuerCredentialStore = tokenStore
+    )
+
     override fun loadFromDatabase(): Result<Map<Int, Pair<Int, StatusListView>>> =
         databaseService.loadClientStatusLists()
 
@@ -66,6 +65,12 @@ class KeyStorageTokenStoreService(
     override val statusListBaseUrl: String,
     override val exportInterval: Duration
 ) : TokenStoreService {
+    val statusListAgent: StatusListAgent = StatusListAgent(
+        keyMaterial = keyMaterial,
+        statusListBaseUrl = statusListBaseUrl,
+        issuerCredentialStore = tokenStore
+    )
+
     override fun loadFromDatabase(): Result<Map<Int, Pair<Int, StatusListView>>> =
         databaseService.loadKeyStorageStatusLists()
 
