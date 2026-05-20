@@ -51,7 +51,8 @@ class ApplicationTest {
             moduleServer()
         }
 
-        assertEquals(HttpStatusCode.OK, client.get(configData.endpoint.root).status)
+        assertEquals(HttpStatusCode.OK, client.get(configData.endpoint.viewClientStatus).status)
+        assertEquals(HttpStatusCode.OK, client.get(configData.endpoint.viewKeyStorageStatus).status)
         assertEquals(HttpStatusCode.OK, client.get(configData.endpoint.nonce).status)
         assertEquals(HttpStatusCode.OK, client.get(configData.endpoint.challenge).status)
     }

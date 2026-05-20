@@ -20,7 +20,6 @@ provider:
   publicContext: "https://wallet-provider.a-sit.plus"
   clientId: "https://wallet.a-sit.at/app"
   issuer: "https://wallet.a-sit.at"
-  providerName: "A-SIT Plus"
   solutionId: "Valera"
   solutionOid: "2.25.210184084534939142470042512176304499012"
 
@@ -31,9 +30,10 @@ endpoints:
   clientStatus: "/api/v1/clientStatus"
   keyStorageStatus: "/api/v1/keyStorageStatus"
   nonce: "/api/v1/nonce"
-  update: "/update"
-  root: "/"
-
+  updateKeyStorageStatus: "/update/keyStorageStatus"
+  updateClientStatus: "/update/clientStatus"
+  viewKeyStorageStatus: "/view/keyStorageStatus"
+  viewClientStatus: "/view/clientStatus"
 attestation:
   keyAttestation:
     maintenance: "P60D"

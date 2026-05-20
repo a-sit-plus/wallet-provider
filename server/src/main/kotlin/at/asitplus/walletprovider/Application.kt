@@ -26,16 +26,37 @@ fun Application.module() {
 fun Application.moduleServer() {
     inject<WalletProviderMain>().let { provider ->
         routing {
-            get(provider.configData.endpoint.root) {
-                provider.httpService.handleRootRequest().onSuccess {
+            get("/") {
+                provider.httpService.handleRootPageRequest().onSuccess {
                     call.respondHtmlTemplate(it) {}
                 }.onFailure {
                     call.respond(HttpStatusCode.BadRequest, it.toString())
                 }
             }
-            post(provider.configData.endpoint.update) {
-                provider.httpService.handleUpdateRequest(call.receiveParameters()).onSuccess {
-                    call.respondRedirect(provider.configData.endpoint.root)
+            get(provider.configData.endpoint.viewKeyStorageStatus) {
+                provider.httpService.handleViewKeyStorageStatusRequest().onSuccess {
+                    call.respondHtmlTemplate(it) {}
+                }.onFailure {
+                    call.respond(HttpStatusCode.BadRequest, it.toString())
+                }
+            }
+            post(provider.configData.endpoint.updateKeyStorageStatus) {
+                provider.httpService.handleUpdateKeyStorageStatusRequest(call.receiveParameters()).onSuccess {
+                    call.respondRedirect(provider.configData.endpoint.viewKeyStorageStatus)
+                }.onFailure {
+                    call.respond(HttpStatusCode.BadRequest, it.toString())
+                }
+            }
+            get(provider.configData.endpoint.viewClientStatus) {
+                provider.httpService.handleViewClientStatusRequest().onSuccess {
+                    call.respondHtmlTemplate(it) {}
+                }.onFailure {
+                    call.respond(HttpStatusCode.BadRequest, it.toString())
+                }
+            }
+            post(provider.configData.endpoint.updateClientStatus) {
+                provider.httpService.handleUpdateClientStatusRequest(call.receiveParameters()).onSuccess {
+                    call.respondRedirect(provider.configData.endpoint.viewClientStatus)
                 }.onFailure {
                     call.respond(HttpStatusCode.BadRequest, it.toString())
                 }

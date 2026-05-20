@@ -25,8 +25,10 @@ endpoints:
   clientStatus: "/api/v1/clientStatus"
   keyStorageStatus: "/api/v1/keyStorageStatus"
   nonce: "/api/v1/nonce"
-  update: "/update"
-  root: "/"
+  updateKeyStorageStatus: "/update/keyStorageStatus"
+  updateClientStatus: "/update/clientStatus"
+  viewKeyStorageStatus: "/view/keyStorageStatus"
+  viewClientStatus: "/view/clientStatus"
 
 attestation:
   keyAttestation:

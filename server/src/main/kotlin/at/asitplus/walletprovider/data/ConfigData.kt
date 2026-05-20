@@ -73,10 +73,14 @@ data class EndpointConfigData(
         ?: throw Throwable("endpoints.keyStorageStatus is missing from config")
     val nonce = config.propertyOrNull("endpoints.nonce")?.getString()
         ?: throw Throwable("endpoints.nonce is missing from config")
-    val update = config.propertyOrNull("endpoints.update")?.getString()
-        ?: throw Throwable("endpoints.update is missing from config")
-    val root =
-        config.propertyOrNull("endpoints.root")?.getString() ?: throw Throwable("endpoints.root is missing from config")
+    val updateKeyStorageStatus = config.propertyOrNull("endpoints.updateKeyStorageStatus")?.getString()
+        ?: throw Throwable("endpoints.updateKeyStorageStatus is missing from config")
+    val updateClientStatus = config.propertyOrNull("endpoints.updateClientStatus")?.getString()
+        ?: throw Throwable("endpoints.updateClientStatus is missing from config")
+    val viewKeyStorageStatus =
+        config.propertyOrNull("endpoints.viewKeyStorageStatus")?.getString() ?: throw Throwable("endpoints.viewKeyStorageStatus is missing from config")
+    val viewClientStatus =
+        config.propertyOrNull("endpoints.viewClientStatus")?.getString() ?: throw Throwable("endpoints.viewClientStatus is missing from config")
 }
 
 data class AttestationConfigData(
