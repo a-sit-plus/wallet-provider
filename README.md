@@ -33,7 +33,6 @@ keytool -genkeypair -alias CHANGEME -keyalg EC -groupname secp256r1 -storetype P
 |                                     | publicContext       | Public base url                                                                          |
 |                                     | clientId            | Value used as the WIA subject/client identifier                                          |
 |                                     | issuer              | Provider/certification URL used in certification information fields                      |
-|                                     | providerName        | Provider display name                                                                    |
 |                                     | solutionId          | Value used as the WIA `wallet_name` claim                                                |
 |                                     | solutionOid         | Identifies additional information in the csr attributes                                  |
 | **endpoints**                       |                     |                                                                                          |

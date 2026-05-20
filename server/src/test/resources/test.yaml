@@ -15,7 +15,6 @@ provider:
   publicContext: "http://127.0.0.1"
   clientId: "https://wallet.a-sit.at/app"
   issuer: "https://wallet.a-sit.at"
-  providerName: "A-SIT Plus"
   solutionId: "Valera"
   solutionOid: "2.25.210184084534939142470042512176304499012"
 

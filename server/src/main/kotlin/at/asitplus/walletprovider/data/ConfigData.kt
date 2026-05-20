@@ -48,8 +48,6 @@ data class ProviderConfigData(
         ?: throw Throwable("provider.clientId is missing from config")
     val issuer = config.propertyOrNull("provider.issuer")?.getString()
         ?: throw Throwable("provider.issuer is missing from config")
-    val providerName = config.propertyOrNull("provider.providerName")?.getString()
-        ?: throw Throwable("provider.providerName is missing from config")
     val solutionId = config.propertyOrNull("provider.solutionId")?.getString()
         ?: throw Throwable("provider.solutionId is missing from config")
     val solutionOid = config.propertyOrNull("provider.solutionOid")?.getString()
