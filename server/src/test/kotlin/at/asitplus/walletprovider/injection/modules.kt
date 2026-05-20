@@ -25,7 +25,7 @@ fun injectDependencies(config: ApplicationConfig) {
             databaseService = inject(),
             keyMaterial = inject(),
             statusListBaseUrl = configData.buildEndpointString(listOf(configData.endpoint.clientStatus)),
-            exportInterval = Duration.parse(configData.database.exportInterval)
+            exportInterval = configData.database.exportInterval
         )
     }
     DependencyInjector.single<KeyStorageTokenStoreService> {
@@ -35,7 +35,7 @@ fun injectDependencies(config: ApplicationConfig) {
             databaseService = inject(),
             keyMaterial = inject(),
             statusListBaseUrl = configData.buildEndpointString(listOf(configData.endpoint.keyStorageStatus)),
-            exportInterval = Duration.parse(configData.database.exportInterval)
+            exportInterval = configData.database.exportInterval
         )
     }
     DependencyInjector.single<KeyMaterial> { inject<KeyStoreProvider>().getSigner() }
