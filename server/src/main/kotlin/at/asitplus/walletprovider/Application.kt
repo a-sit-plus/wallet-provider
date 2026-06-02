@@ -62,17 +62,15 @@ fun Application.moduleServer() {
                 }
             }
             get("${provider.configData.endpoint.keyStorageStatus}/{period}") {
-                // TODO: Add period handling
-                provider.httpService.handleKeyStorageStatusRequest().onSuccess {
-                    call.respondText(text = it.serialize())
+                provider.httpService.handleKeyStorageStatusRequest(params = call.parameters).onSuccess {
+                    call.respondText(text = it.jws.toString())
                 }.onFailure {
                     call.respond(HttpStatusCode.BadRequest, it.toString())
                 }
             }
             get("${provider.configData.endpoint.clientStatus}/{period}") {
-                // TODO: Add period handling
-                provider.httpService.handleClientStatusRequest().onSuccess {
-                    call.respondText(text = it.serialize())
+                provider.httpService.handleClientStatusRequest(params = call.parameters).onSuccess {
+                    call.respondText(text = it.jws.toString())
                 }.onFailure {
                     call.respond(HttpStatusCode.BadRequest, it.toString())
                 }
@@ -93,14 +91,14 @@ fun Application.moduleServer() {
             }
             post(provider.configData.endpoint.instanceAttestation) {
                 provider.httpService.handleInstanceRequest(call.receive<ByteArray>()).onSuccess {
-                    call.respondText(it.serialize())
+                    call.respondText(text = it.jws.toString())
                 }.onFailure {
                     call.respond(HttpStatusCode.BadRequest, it.toString())
                 }
             }
             post(provider.configData.endpoint.keyAttestation) {
                 provider.httpService.handleKeyAttestationRequest(call.receive<String>()).onSuccess {
-                    call.respondText(it.serialize())
+                    call.respondText(text = it.jws.toString())
                 }.onFailure {
                     call.respond(HttpStatusCode.BadRequest, it.toString())
                 }

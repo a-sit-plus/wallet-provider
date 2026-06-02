@@ -17,7 +17,6 @@ import io.github.aakira.napier.Napier
 import io.ktor.http.*
 import io.ktor.util.*
 import kotlinx.serialization.json.Json
-import kotlin.time.Instant
 
 class HttpService(
     val configData: ConfigData,
@@ -31,12 +30,23 @@ class HttpService(
             endpointClientStatus = configData.endpoint.viewClientStatus
         )
     }
-    suspend fun handleKeyStorageStatusRequest(time: Instant? = null) = runCatching {
-        keyStorageTokenStoreService.statusListAgent.issueStatusListJwt(kind = RevocationList.Kind.STATUS_LIST, time = time)
+
+    suspend fun handleKeyStorageStatusRequest(params: Parameters) = runCatching {
+        params.parsePeriod().let {
+            keyStorageTokenStoreService.statusListAgent.issueStatusListJwt(
+                kind = RevocationList.Kind.STATUS_LIST,
+                timePeriod = it
+            )
+        }
     }
 
-    suspend fun handleClientStatusRequest(time: Instant? = null) = runCatching {
-        clientTokenStoreService.statusListAgent.issueStatusListJwt(kind = RevocationList.Kind.STATUS_LIST, time = time)
+    suspend fun handleClientStatusRequest(params: Parameters) = runCatching {
+        params.parsePeriod().let {
+            clientTokenStoreService.statusListAgent.issueStatusListJwt(
+                kind = RevocationList.Kind.STATUS_LIST,
+                timePeriod = it
+            )
+        }
     }
 
     fun handleViewKeyStorageStatusRequest() = runCatching {
@@ -117,4 +127,7 @@ class HttpService(
                 )
             }.getOrThrow()
     }
+
+    private fun Parameters.parsePeriod(): Int = (this["period"] ?: throw Throwable("No period in URL")).toInt()
+
 }

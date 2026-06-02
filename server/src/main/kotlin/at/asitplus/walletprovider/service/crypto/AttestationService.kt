@@ -5,6 +5,7 @@ import at.asitplus.attestation.android.AndroidAttestationConfiguration
 import at.asitplus.attestation.supreme.AttestationResponse
 import at.asitplus.attestation.supreme.AttestationVerifier
 import at.asitplus.attestation.supreme.SupremeConfiguration
+import at.asitplus.catching
 import at.asitplus.openid.OpenIdConstants
 import at.asitplus.signum.indispensable.asn1.Asn1Primitive
 import at.asitplus.signum.indispensable.josef.*
@@ -82,26 +83,21 @@ interface AttestationService {
         }
     }
 
-    suspend fun verifyInstanceAttestation(token: JwsSigned<JsonWebToken>, proof: JwsSigned<JsonWebToken>) =
+    suspend fun verifyInstanceAttestation(token: JwsCompactTyped<JsonWebToken>, proof: JwsCompactTyped<JsonWebToken>) =
         runCatching {
             val clientKey = token.payload.confirmationClaim?.jsonWebKey?.toCryptoPublicKey()?.getOrThrow()!!
             val instanceAttestationValid =
-                VerifyJwsSignature().invoke(token, keyMaterial.publicKey).isSuccess
-            val proofValid = VerifyJwsSignature().invoke(proof, clientKey).isSuccess
+                VerifyJwsSignature().invoke(token.jws, keyMaterial.publicKey).isSuccess
+            val proofValid = VerifyJwsSignature().invoke(proof.jws, clientKey).isSuccess
             val nonceValid = verifyNonce(proof.payload.nonce!!)
             return@runCatching (instanceAttestationValid && proofValid && nonceValid)
         }
 
     suspend fun buildKeyAttestation(request: KeyAttestationRequest, idx: Int) = runCatching {
-        val token = JwsSigned.deserialize<JsonWebToken>(
-            it = request.token,
-            deserializationStrategy = JsonWebToken.serializer(),
-        ).getOrThrow()
+        val token = catching { JwsCompactTyped<JsonWebToken>(request.token) }.getOrThrow()
 
-        val proof = JwsSigned.deserialize<JsonWebToken>(
-            it = request.proof,
-            deserializationStrategy = JsonWebToken.serializer(),
-        ).getOrThrow()
+        val proof = catching { JwsCompactTyped<JsonWebToken>(request.proof) }.getOrThrow()
+
 
         when (verifyInstanceAttestation(token, proof).getOrDefault(false)) {
             true -> {
@@ -131,8 +127,10 @@ interface AttestationService {
     suspend fun verifyNonce(nonce: String) = nonceService.verifyAndRemoveNonce(nonce)
 
     fun statusListReference(idx: Int, endpoint: String): JsonObject = buildJsonObject {
-        put(key = "status_list", element = joseCompliantSerializer.encodeToJsonElement(
-            StatusListInfo(index = idx.toULong(), endpoint.toUri()))
+        put(
+            key = "status_list", element = joseCompliantSerializer.encodeToJsonElement(
+                StatusListInfo(index = idx.toULong(), endpoint.toUri())
+            )
         )
     }
 

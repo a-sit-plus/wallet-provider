@@ -2,7 +2,6 @@ package at.asitplus.walletprovider.data
 
 import io.ktor.http.*
 import io.ktor.server.config.*
-import io.ktor.util.Attributes
 import kotlin.time.Duration
 
 data class ConfigData(
@@ -78,24 +77,30 @@ data class EndpointConfigData(
     val updateClientStatus = config.propertyOrNull("endpoints.updateClientStatus")?.getString()
         ?: throw Throwable("endpoints.updateClientStatus is missing from config")
     val viewKeyStorageStatus =
-        config.propertyOrNull("endpoints.viewKeyStorageStatus")?.getString() ?: throw Throwable("endpoints.viewKeyStorageStatus is missing from config")
+        config.propertyOrNull("endpoints.viewKeyStorageStatus")?.getString()
+            ?: throw Throwable("endpoints.viewKeyStorageStatus is missing from config")
     val viewClientStatus =
-        config.propertyOrNull("endpoints.viewClientStatus")?.getString() ?: throw Throwable("endpoints.viewClientStatus is missing from config")
+        config.propertyOrNull("endpoints.viewClientStatus")?.getString()
+            ?: throw Throwable("endpoints.viewClientStatus is missing from config")
 }
 
 data class AttestationConfigData(
     val config: ApplicationConfig
 ) {
     val keyAttestation = AttestationDurations(
-        maintenance = config.propertyOrNull("attestation.keyAttestation.maintenance")?.getString()?.let { Duration.parseIsoString(it) }
+        maintenance = config.propertyOrNull("attestation.keyAttestation.maintenance")?.getString()
+            ?.let { Duration.parseIsoString(it) }
             ?: throw Throwable("attestation.keyAttestation.maintenance is missing from config"),
-        lifetime = config.propertyOrNull("attestation.keyAttestation.lifetime")?.getString()?.let { Duration.parseIsoString(it) }
+        lifetime = config.propertyOrNull("attestation.keyAttestation.lifetime")?.getString()
+            ?.let { Duration.parseIsoString(it) }
             ?: throw Throwable("attestation.keyAttestation.lifetime is missing from config")
     )
     val instanceAttestation = AttestationDurations(
-        maintenance = config.propertyOrNull("attestation.instanceAttestation.maintenance")?.getString()?.let { Duration.parseIsoString(it) }
+        maintenance = config.propertyOrNull("attestation.instanceAttestation.maintenance")?.getString()
+            ?.let { Duration.parseIsoString(it) }
             ?: throw Throwable("attestation.instanceAttestation.maintenance is missing from config"),
-        lifetime = config.propertyOrNull("attestation.instanceAttestation.lifetime")?.getString()?.let { Duration.parseIsoString(it) }
+        lifetime = config.propertyOrNull("attestation.instanceAttestation.lifetime")?.getString()
+            ?.let { Duration.parseIsoString(it) }
             ?: throw Throwable("attestation.instanceAttestation.lifetime is missing from config")
     )
     val androidPackageName = config.propertyOrNull("attestation.android.packageName")?.getString()
@@ -122,8 +127,9 @@ data class DatabaseConfigData(
     val driver = config.propertyOrNull("database.driver")?.getString()
         ?: throw Throwable("database.driver is missing from config")
 
-    val exportInterval = config.propertyOrNull("database.exportInterval")?.getString()?.let { Duration.parseIsoString(it) }
-        ?: throw Throwable("database.exportInterval is missing from config")
+    val exportInterval =
+        config.propertyOrNull("database.exportInterval")?.getString()?.let { Duration.parseIsoString(it) }
+            ?: throw Throwable("database.exportInterval is missing from config")
 }
 
 data class KeyStoreConfigData(

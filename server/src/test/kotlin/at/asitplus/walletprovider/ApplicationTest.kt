@@ -133,8 +133,8 @@ class ApplicationTest {
 
 
         val keyAttestationRequest = KeyAttestationRequest(
-            token = instanceAttestation.serialize(),
-            proof = instancePop.serialize(),
+            token = instanceAttestation.jws.toString(),
+            proof = instancePop.jws.toString(),
             keys = listOf(keyAttestationKey.jsonWebKey),
             keyStorage = setOf("iso_18045_high"),
             userAuthentication = setOf("iso_18045_high"),
@@ -146,7 +146,7 @@ class ApplicationTest {
 
         val keyAttestation = attestationService.buildKeyAttestation(keyAttestationRequest, 0).getOrThrow()
         assertEquals(
-            VerifyJwsSignature().invoke(keyAttestation, attestationService.keyMaterial.publicKey).isSuccess,
+            VerifyJwsSignature().invoke(keyAttestation.jws, attestationService.keyMaterial.publicKey).isSuccess,
             true
         )
         assertEquals(keyAttestation.payload.attestedKeys.first(), keyAttestationKey.jsonWebKey)
