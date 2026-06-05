@@ -11,7 +11,6 @@ import at.asitplus.walletprovider.service.storage.DatabaseService
 import at.asitplus.walletprovider.service.storage.InMemoryTokenStore
 import at.asitplus.walletprovider.service.storage.KeyStorageTokenStoreService
 import io.ktor.server.config.*
-import kotlin.time.Duration
 
 fun injectDependencies(config: ApplicationConfig) {
     DependencyInjector.single<ConfigData> { ConfigData(config) }

@@ -1,5 +1,6 @@
 package at.asitplus.walletprovider.service.crypto
 
+import at.asitplus.catchingUnwrapped
 import at.asitplus.signum.indispensable.SignatureAlgorithm
 import at.asitplus.signum.indispensable.pki.X509Certificate
 import at.asitplus.signum.indispensable.toCryptoPrivateKey
@@ -21,7 +22,7 @@ interface KeyStoreProvider {
 class RealKeyStoreProvider(val config: ConfigData) : KeyStoreProvider {
     override fun getSigner() = loadServerKey()
 
-    private fun loadServerKey() = runCatching {
+    private fun loadServerKey() = catchingUnwrapped {
         val keyStore = File(config.keystore.file).inputStream()
             .use { KeyStore.getInstance("PKCS12").apply { load(it, config.keystore.secret.toCharArray()) } }
         val privateKey =

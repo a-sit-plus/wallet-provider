@@ -6,6 +6,7 @@ import at.asitplus.attestation.supreme.AttestationResponse
 import at.asitplus.attestation.supreme.AttestationVerifier
 import at.asitplus.attestation.supreme.SupremeConfiguration
 import at.asitplus.catching
+import at.asitplus.catchingUnwrapped
 import at.asitplus.openid.OpenIdConstants
 import at.asitplus.signum.indispensable.asn1.Asn1Primitive
 import at.asitplus.signum.indispensable.josef.*
@@ -45,7 +46,7 @@ interface AttestationService {
         csr: Pkcs10CertificationRequest
     ): AttestationResponse
 
-    suspend fun buildInstanceAttestation(csr: Pkcs10CertificationRequest, idx: Int) = runCatching {
+    suspend fun buildInstanceAttestation(csr: Pkcs10CertificationRequest, idx: Int) = catchingUnwrapped {
         val csrData = (csr.tbsCsr.attributes.firstOrNull {
             it.oid.toString() == configData.provider.solutionOid
         }?.value)
@@ -61,7 +62,7 @@ interface AttestationService {
             is AttestationResponse.Success -> {
                 val clientKey = csr.tbsCsr.publicKey.toJsonWebKey()
                 Napier.i("Verified key $clientKey", tag = "AttestationService")
-                return@runCatching BuildClientAttestationJwt(
+                return@catchingUnwrapped BuildClientAttestationJwt(
                     SignJwt(keyMaterial, JwsHeaderCertOrJwk()),
                     clientId = configData.provider.clientId,
                     issuer = configData.provider.issuer,
@@ -84,16 +85,16 @@ interface AttestationService {
     }
 
     suspend fun verifyInstanceAttestation(token: JwsCompactTyped<JsonWebToken>, proof: JwsCompactTyped<JsonWebToken>) =
-        runCatching {
+        catchingUnwrapped {
             val clientKey = token.payload.confirmationClaim?.jsonWebKey?.toCryptoPublicKey()?.getOrThrow()!!
             val instanceAttestationValid =
                 VerifyJwsSignature().invoke(token.jws, keyMaterial.publicKey).isSuccess
             val proofValid = VerifyJwsSignature().invoke(proof.jws, clientKey).isSuccess
             val nonceValid = verifyNonce(proof.payload.nonce!!)
-            return@runCatching (instanceAttestationValid && proofValid && nonceValid)
+            return@catchingUnwrapped (instanceAttestationValid && proofValid && nonceValid)
         }
 
-    suspend fun buildKeyAttestation(request: KeyAttestationRequest, idx: Int) = runCatching {
+    suspend fun buildKeyAttestation(request: KeyAttestationRequest, idx: Int) = catchingUnwrapped {
         val token = catching { JwsCompactTyped<JsonWebToken>(request.token) }.getOrThrow()
 
         val proof = catching { JwsCompactTyped<JsonWebToken>(request.proof) }.getOrThrow()
@@ -101,7 +102,7 @@ interface AttestationService {
 
         when (verifyInstanceAttestation(token, proof).getOrDefault(false)) {
             true -> {
-                return@runCatching BuildKeyAttestationJwt(
+                return@catchingUnwrapped BuildKeyAttestationJwt(
                     SignJwt(keyMaterial, JwsHeaderCertOrJwk()),
                     lifetime = configData.attestation.keyAttestation.lifetime,
                     attestedKeys = request.keys,

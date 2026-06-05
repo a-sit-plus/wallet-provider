@@ -1,5 +1,6 @@
 package at.asitplus.walletprovider.service.network
 
+import at.asitplus.catchingUnwrapped
 import at.asitplus.openid.ClientNonceResponse
 import at.asitplus.signum.indispensable.josef.io.joseCompliantSerializer
 import at.asitplus.signum.indispensable.pki.Pkcs10CertificationRequest
@@ -24,14 +25,14 @@ class HttpService(
     val keyStorageTokenStoreService: KeyStorageTokenStoreService,
     val attestationService: AttestationService,
 ) {
-    fun handleRootPageRequest() = runCatching {
+    fun handleRootPageRequest() = catchingUnwrapped {
         RootPageTemplate(
             endpointKeyStorageStatus = configData.endpoint.viewKeyStorageStatus,
             endpointClientStatus = configData.endpoint.viewClientStatus
         )
     }
 
-    suspend fun handleKeyStorageStatusRequest(params: Parameters) = runCatching {
+    suspend fun handleKeyStorageStatusRequest(params: Parameters) = catchingUnwrapped {
         params.parsePeriod().let {
             keyStorageTokenStoreService.statusListAgent.issueStatusListJwt(
                 kind = RevocationList.Kind.STATUS_LIST,
@@ -40,7 +41,7 @@ class HttpService(
         }
     }
 
-    suspend fun handleClientStatusRequest(params: Parameters) = runCatching {
+    suspend fun handleClientStatusRequest(params: Parameters) = catchingUnwrapped {
         params.parsePeriod().let {
             clientTokenStoreService.statusListAgent.issueStatusListJwt(
                 kind = RevocationList.Kind.STATUS_LIST,
@@ -49,7 +50,7 @@ class HttpService(
         }
     }
 
-    fun handleViewKeyStorageStatusRequest() = runCatching {
+    fun handleViewKeyStorageStatusRequest() = catchingUnwrapped {
         StatusFormTemplate(
             endpoint = configData.endpoint.updateKeyStorageStatus,
             data = keyStorageTokenStoreService.tokenStore.getStatusListView(configData.status.fixedTimePeriod)
@@ -57,7 +58,7 @@ class HttpService(
         )
     }
 
-    fun handleUpdateKeyStorageStatusRequest(params: Parameters) = runCatching {
+    fun handleUpdateKeyStorageStatusRequest(params: Parameters) = catchingUnwrapped {
         params.flattenEntries().forEach {
             keyStorageTokenStoreService.tokenStore.setStatus(
                 configData.status.fixedTimePeriod,
@@ -67,7 +68,7 @@ class HttpService(
         }
     }
 
-    fun handleViewClientStatusRequest() = runCatching {
+    fun handleViewClientStatusRequest() = catchingUnwrapped {
         StatusFormTemplate(
             endpoint = configData.endpoint.updateClientStatus,
             data = clientTokenStoreService.tokenStore.getStatusListView(configData.status.fixedTimePeriod)
@@ -75,7 +76,7 @@ class HttpService(
         )
     }
 
-    fun handleUpdateClientStatusRequest(params: Parameters) = runCatching {
+    fun handleUpdateClientStatusRequest(params: Parameters) = catchingUnwrapped {
         params.flattenEntries().forEach {
             clientTokenStoreService.tokenStore.setStatus(
                 configData.status.fixedTimePeriod,
@@ -85,12 +86,12 @@ class HttpService(
         }
     }
 
-    suspend fun handleChallengeRequest() = runCatching {
+    suspend fun handleChallengeRequest() = catchingUnwrapped {
         Napier.i("Issuing Challenge", tag = "HttpService")
         attestationService.issueChallenge()
     }
 
-    suspend fun handleNonceRequest() = runCatching {
+    suspend fun handleNonceRequest() = catchingUnwrapped {
         Napier.i("Issuing Nonce", tag = "HttpService")
 
         attestationService.getNonce().let {
@@ -98,7 +99,7 @@ class HttpService(
         }
     }
 
-    suspend fun handleInstanceRequest(request: ByteArray) = runCatching {
+    suspend fun handleInstanceRequest(request: ByteArray) = catchingUnwrapped {
         Napier.i("Start Instance Attestation", tag = "HttpService")
         val idx = clientTokenStoreService.tokenStore.getNextFreeIndex(configData.status.fixedTimePeriod)
         Pkcs10CertificationRequest.decodeFromDer(request).let { csr ->
@@ -112,7 +113,7 @@ class HttpService(
         }
     }
 
-    suspend fun handleKeyAttestationRequest(request: String) = runCatching {
+    suspend fun handleKeyAttestationRequest(request: String) = catchingUnwrapped {
         Napier.i("Start KeyAttestation", tag = "HttpService")
         val idx = keyStorageTokenStoreService.tokenStore.getNextFreeIndex(configData.status.fixedTimePeriod)
         attestationService.buildKeyAttestation(

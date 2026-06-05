@@ -1,5 +1,6 @@
 package at.asitplus.walletprovider.service.storage
 
+import at.asitplus.catchingUnwrapped
 import at.asitplus.wallet.lib.data.rfc.tokenStatusList.StatusListView
 import at.asitplus.wallet.lib.data.rfc.tokenStatusList.primitives.TokenStatusBitSize
 import at.asitplus.walletprovider.data.ConfigData
@@ -39,7 +40,7 @@ class DatabaseService(config: ConfigData) {
         override val primaryKey = PrimaryKey(timePeriod)
     }
 
-    fun loadKeyStorageStatusLists() = runCatching {
+    fun loadKeyStorageStatusLists() = catchingUnwrapped {
         transaction {
             KeyStorageStatusLists.selectAll().associate {
                 it[KeyStorageStatusLists.timePeriod] to (it[KeyStorageStatusLists.counter] to StatusListView(
@@ -50,7 +51,7 @@ class DatabaseService(config: ConfigData) {
         }
     }
 
-    fun loadClientStatusLists() = runCatching {
+    fun loadClientStatusLists() = catchingUnwrapped {
         transaction {
             ClientStatusLists.selectAll().associate {
                 it[ClientStatusLists.timePeriod] to (it[ClientStatusLists.counter] to StatusListView(
@@ -62,7 +63,7 @@ class DatabaseService(config: ConfigData) {
     }
 
 
-    fun saveKeyStorageStatusLists(data: Map<Int, Pair<Int, StatusListView>>) = runCatching {
+    fun saveKeyStorageStatusLists(data: Map<Int, Pair<Int, StatusListView>>) = catchingUnwrapped {
         data.forEach { timePeriod, (counter, statusListView) ->
             transaction {
                 KeyStorageStatusLists.upsert {
@@ -75,7 +76,7 @@ class DatabaseService(config: ConfigData) {
         }
     }
 
-    fun saveClientStatusLists(data: Map<Int, Pair<Int, StatusListView>>) = runCatching {
+    fun saveClientStatusLists(data: Map<Int, Pair<Int, StatusListView>>) = catchingUnwrapped {
         data.forEach { timePeriod, (counter, statusListView) ->
             transaction {
                 ClientStatusLists.upsert {
