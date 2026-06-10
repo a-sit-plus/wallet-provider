@@ -16,40 +16,48 @@ keytool -genkeypair -alias CHANGEME -keyalg EC -groupname secp256r1 -storetype P
 ```
 
 ### Customize application.yaml
-| **Module**              | **Option**        | **Description**                                                                          |
-|-------------------------|-------------------|------------------------------------------------------------------------------------------|
-| **ktor**                |                   |                                                                                          |
-|                         | port              | Port the server listens on                                                               |
-|                         | host              | IP address the server listens on                                                         |
-| **database**            |                   |                                                                                          |
-|                         | url               | URL for the database connection                                                          |
-|                         | driver            | JDBC driver class                                                                        |
-|                         | exportInterval    | Interval of the export scheduler (ISO 8601)                                              |
-| **keystore**            |                   |                                                                                          |
-|                         | file              | Path to p12 keystore file                                                                |
-|                         | alias             | Alias of key to be used                                                                  |
-|                         | secrect           | Secrect to unlock keystore file                                                          |
-| **provider**            |                   |                                                                                          |
-|                         | publicContext     | Public base url                                                                          |
-|                         | clientId          | Value used as the subject field in the attestation jwts                                  |
-|                         | issuer            | Value used for the jwt issuer field in the attestation jwts                              |
-|                         | providerName      | Used for the `EudiWalletInfo` data class                                                 |
-|                         | solutionId        | Used for the `EudiWalletInfo` data class                                                 |
-|                         | solutionOid       | Identifies additional information in the csr attributes                                  |
-| **endpoints**           |                   |                                                                                          |
-|                         | challenge         | Endpoint for the wallet solution to request a attestation challenge via `warden-supreme` |
-|                         | instance          | Endpoint where the wallet solution posts the `InstanceAttestationRequest`                |
-|                         | unit              | Endpoint where the wallet solution posts the `UnitAttestationRequest`                    |
-|                         | status            | Endpoint to obtain the revocation status of unit attestations                            |
-|                         | nonce             | Endpoint for the wallet solution to obtain a nonce for the instance attestaion proof jwt |
-|                         | update            | Testing endpoint to update the revocation status of the unit attestations                |
-|                         | root              | Testing endpoint to display the revocation status of the unit attestations               |
-| **attestation.android** |                   |                                                                                          |
-|                         | packageName       | Package name used by `warden-supreme` during the wallet solution verification            |
-|                         | signerFingerprint | Signer fingerprint used by `warden-supreme` during the wallet solution verification      |
-| **attestation.ios**     |                   |                                                                                          |
-|                         | teamIdentifier    | Team identifier used by `warden-supreme` during the wallet solution verification         |
-|                         | bundleIdentifier  | Bundle identifier used by `warden-supreme` during the wallet solution verification       |
+| **Module**                          | **Option**             | **Description**                                                                          |
+|-------------------------------------|------------------------|------------------------------------------------------------------------------------------|
+| **ktor**                            |                        |                                                                                          |
+|                                     | port                   | Port the server listens on                                                               |
+|                                     | host                   | IP address the server listens on                                                         |
+| **database**                        |                        |                                                                                          |
+|                                     | url                    | URL for the database connection                                                          |
+|                                     | driver                 | JDBC driver class                                                                        |
+|                                     | exportInterval         | Interval of the export scheduler (ISO 8601)                                              |
+| **keystore**                        |                        |                                                                                          |
+|                                     | file                   | Path to p12 keystore file                                                                |
+|                                     | alias                  | Alias of key to be used                                                                  |
+|                                     | secret                 | Secret to unlock keystore file                                                           |
+| **provider**                        |                        |                                                                                          |
+|                                     | publicContext          | Public base url                                                                          |
+|                                     | clientId               | Value used as the WIA subject/client identifier                                          |
+|                                     | issuer                 | Provider/certification URL used in certification information fields                      |
+|                                     | solutionId             | Value used as the WIA `wallet_name` claim                                                |
+|                                     | solutionOid            | Identifies additional information in the csr attributes                                  |
+| **endpoints**                       |                        |                                                                                          |
+|                                     | challenge              | Endpoint for the wallet solution to request a attestation challenge via `warden-supreme` |
+|                                     | instanceAttestation    | Endpoint where the wallet solution posts the `InstanceAttestationRequest`                |
+|                                     | keyAttestation         | Endpoint where the wallet solution posts the `KeyAttestationRequest`                     |
+|                                     | clientStatus           | Endpoint to obtain the revocation status of key attestations                             |
+|                                     | keyStorageStatus       | Endpoint to obtain the revocation status of instance attestations                        |
+|                                     | nonce                  | Endpoint for the wallet solution to obtain a nonce for the instance attestaion proof jwt |
+|                                     | updateKeyStorageStatus | Form endpoint to update the revocation status of the key attestations                    |
+|                                     | updateClientStatus     | Form endpoint to update the revocation status of the instance attestations               |
+|                                     | viewKeyStorageStatus   | Testing endpoint to view the revocation status of the key attestations                   |
+|                                     | viewClientStatus       | Testing endpoint to view the revocation status of the instance attestations              |
+| **attestation.keyAttestation**      |                        |                                                                                          |
+|                                     | maintenance            | Duration how long the provider maintains the keyStorageStatus                            |
+|                                     | lifetime               | Technical validity of the key attestation jwt                                            |
+| **attestation.instanceAttestation** |                        |                                                                                          |
+|                                     | maintenance            | Duration how long the provider maintains the clientStatus                                |
+|                                     | lifetime               | Technical validity of the instance attestation jwt                                       |
+| **attestation.android**             |                        |                                                                                          |
+|                                     | packageName            | Package name used by `warden-supreme` during the wallet solution verification            |
+|                                     | signerFingerprint      | Signer fingerprint used by `warden-supreme` during the wallet solution verification      |
+| **attestation.ios**                 |                        |                                                                                          |
+|                                     | teamIdentifier         | Team identifier used by `warden-supreme` during the wallet solution verification         |
+|                                     | bundleIdentifier       | Bundle identifier used by `warden-supreme` during the wallet solution verification       |
 
 
 ### Run Terminal Command
@@ -69,18 +77,79 @@ So adjust the `CONFIG_URL` and or the env vars to your needs.
 
 ### Attestation & Authentication Endpoints
 
-| Endpoint            | Method | Description                               |
-|---------------------|--------|-------------------------------------------|
-| `/api/v1/challenge` | GET    | Challenge for instance attestation        |
-| `/api/v1/nonce`     | GET    | Nonce for client authentication           |
-| `/api/v1/instance`  | POST   | JSON-encoded `InstanceAttestationRequest` |
-| `/api/v1/unit`      | POST   | JSON-encoded `UnitAttestationRequest`     |
+| Endpoint                      | Method | Description                               |
+|-------------------------------|--------|-------------------------------------------|
+| `/api/v1/challenge`           | GET    | Challenge for instance attestation        |
+| `/api/v1/nonce`               | GET    | Nonce for client authentication           |
+| `/api/v1/instanceAttestation` | POST   | JSON-encoded `InstanceAttestationRequest` |
+| `/api/v1/keyAttestation`      | POST   | JSON-encoded `KeyAttestationRequest`      |
+
+`/api/v1/instanceAttestation` returns a Wallet Instance Attestation which is a jwt of type `oauth-client-attestation+jwt` 
+extended with `wallet_name`, `wallet_version`, `wallet_solution_certification_information` and `client_status` fields according to the ts3-wallet-unit-attestation. 
+
+**Example content:**
+```json
+{
+  "sub" : "https://wallet.a-sit.at/app",
+  "iat" : 1778512996,
+  "exp" : 1778556196,
+  "cnf" : {
+    "jwk" : {
+      "crv" : "P-256",
+      "kty" : "EC",
+      "x" : "...",
+      "y" : "..."
+    }
+  },
+  "wallet_name" : "Valera",
+  "wallet_version" : "1.0",
+  "wallet_solution_certification_information" : "https://wallet.a-sit.at",
+  "client_status" : {
+    "status" : {
+      "status_list" : {
+        "idx" : 0,
+        "uri" : "https://wallet-provider.a-sit.plus/api/v1/clientStatus/1"
+      }
+    },
+    "exp" : 1781191696
+  }
+}
+```
+
+`/api/v1/keyAttestation` returns a Key Attestation which is a jwt of type `keyattestation+jwt`
+extended with `key_storage`, `user_authentication`, `certification` and `key_storage_status` fields according to the ts3-wallet-unit-attestation.
+**Example content:**
+```json
+{
+  "iat" : 1778513051,
+  "exp" : 1778556251,
+  "attested_keys" : [ {
+    "crv" : "P-256",
+    "kty" : "EC",
+    "x" : "...",
+    "y" : "..."
+  } ],
+  "key_storage" : [ "iso_18045_high" ],
+  "user_authentication" : [ "iso_18045_high" ],
+  "certification" : "https://wallet.a-sit.at",
+  "key_storage_status" : {
+    "status" : {
+      "status_list" : {
+        "idx" : 0,
+        "uri" : "https://wallet-provider.a-sit.plus/api/v1/keyStorageStatus/1"
+      }
+    },
+    "exp" : 1781191751
+  }
+}
+```
 
 ### Revocations Status Endpoints
 
-| Endpoint                  | Method | Description                                         |
-|---------------------------|--------|-----------------------------------------------------|
-| `/api/v1/status/{period}` | GET    | Status list JWT. Use `uri` from `KeyAttestationJwt` |
+| Endpoint                            | Method | Description                                              |
+|-------------------------------------|--------|----------------------------------------------------------|
+| `/api/v1/keyStorageStatus/{period}` | GET    | Status list JWT. Use `uri` from `KeyAttestationJwt`      |
+| `/api/v1/clientStatus/{period}`     | GET    | Status list JWT. Use `uri` from `InstanceAttestationJwt` |
 
 ### Web Interface
 

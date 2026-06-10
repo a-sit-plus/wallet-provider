@@ -1,16 +1,12 @@
 package at.asitplus.walletprovider.service.storage
 
+import at.asitplus.catchingUnwrapped
 import at.asitplus.wallet.lib.data.rfc.tokenStatusList.StatusListView
 import at.asitplus.wallet.lib.data.rfc.tokenStatusList.agents.ReferencedTokenStore
 import at.asitplus.wallet.lib.data.rfc.tokenStatusList.iso18013.Identifier
 import at.asitplus.wallet.lib.data.rfc.tokenStatusList.iso18013.IdentifierInfo
 import at.asitplus.wallet.lib.data.rfc.tokenStatusList.primitives.TokenStatus
 import at.asitplus.wallet.lib.data.rfc.tokenStatusList.primitives.TokenStatusBitSize
-import at.asitplus.walletprovider.data.ConfigData
-import io.github.aakira.napier.Napier
-import java.time.Duration
-import java.util.*
-import kotlin.concurrent.schedule
 
 data class TokenMapEntry(
     var counter: Int, val map: MutableMap<Int, TokenStatus>
@@ -18,16 +14,8 @@ data class TokenMapEntry(
 
 class InMemoryTokenStore(
     val tokenStatusBitSize: TokenStatusBitSize = TokenStatusBitSize.TWO,
-    val configData: ConfigData,
-    val databaseService: DatabaseService,
 ) : ReferencedTokenStore {
 
-    val timer: Timer = Timer().also {
-        it.schedule(0L, Duration.parse(configData.database.exportInterval).toMillis()) {
-            Napier.i("Scheduled database write.", tag = "InMemoryTokenStore")
-            exportToDatabase()
-        }
-    }
     private val tokenMap = mutableMapOf<Int, TokenMapEntry>()
 
     fun getNextFreeIndex(timePeriod: Int): Int {
@@ -39,7 +27,7 @@ class InMemoryTokenStore(
         }
     }
 
-    fun importFromDatabase(data: Map<Int, Pair<Int, StatusListView>>) {
+    fun importData(data: Map<Int, Pair<Int, StatusListView>>) {
         data.forEach { timePeriod, (counter, statusListView) ->
             tokenMap[timePeriod] = TokenMapEntry(counter, statusListView.getMap().map {
                 it.key.toInt() to TokenStatus(it.value.toUInt())
@@ -47,14 +35,12 @@ class InMemoryTokenStore(
         }
     }
 
-    fun exportToDatabase() {
+    fun exportData() =
         tokenMap.mapNotNull { (timePeriod, _) ->
             val counter = tokenMap[timePeriod]?.counter ?: return@mapNotNull null
             timePeriod to (counter to getStatusListView(timePeriod))
-        }.toMap().let {
-            databaseService.saveStatusLists(it)
-        }
-    }
+        }.toMap()
+
 
     override fun getStatusListView(timePeriod: Int): StatusListView {
         val timePeriodStatusMap = tokenMap.getOrPut(timePeriod, { TokenMapEntry(0, mutableMapOf()) })
@@ -96,7 +82,7 @@ fun ReferencedTokenStore.getMap(timePeriod: Int): Map<Int, Int> {
     val size = timePeriodMap.keys.size
 
     (0..size).forEach { index ->
-        runCatching { timePeriodMap[index] }.getOrNull()?.let {
+        catchingUnwrapped { timePeriodMap[index] }.getOrNull()?.let {
             result[index] = it
         }
     }
@@ -107,7 +93,7 @@ fun StatusListView.getMap(): Map<UInt, Int> {
     val result = mutableMapOf<UInt, Int>()
     val size = (this.uncompressed.size * 8) / this.statusBitSize.value.toInt()
     (0..size).forEach { index ->
-        runCatching { this[index.toUInt()] }.getOrNull()?.let {
+        catchingUnwrapped { this[index.toUInt()] }.getOrNull()?.let {
             result[index.toUInt()] = it.value.toInt()
         }
     }
