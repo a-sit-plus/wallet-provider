@@ -1,5 +1,6 @@
 package at.asitplus.walletprovider.service.storage
 
+import at.asitplus.catchingUnwrapped
 import at.asitplus.wallet.lib.data.rfc.tokenStatusList.StatusListView
 import at.asitplus.wallet.lib.data.rfc.tokenStatusList.primitives.TokenStatusBitSize
 import at.asitplus.walletprovider.data.ConfigData
@@ -16,11 +17,12 @@ class DatabaseService(config: ConfigData) {
             url = config.database.url, driver = config.database.driver
         )
         transaction {
-            SchemaUtils.create(StatusLists)
+            SchemaUtils.create(KeyStorageStatusLists)
+            SchemaUtils.create(ClientStatusLists)
         }
     }
 
-    object StatusLists : Table("status_lists") {
+    object KeyStorageStatusLists : Table("key_storage_status") {
         val timePeriod = integer("time_period")
         val data = binary("data")
         val counter = integer("counter")
@@ -29,25 +31,58 @@ class DatabaseService(config: ConfigData) {
         override val primaryKey = PrimaryKey(timePeriod)
     }
 
-    fun loadStatusLists() = runCatching {
+    object ClientStatusLists : Table("client_status_lists") {
+        val timePeriod = integer("time_period")
+        val data = binary("data")
+        val counter = integer("counter")
+        val statusBitSize = varchar("status_bit_size", 50)
+
+        override val primaryKey = PrimaryKey(timePeriod)
+    }
+
+    fun loadKeyStorageStatusLists() = catchingUnwrapped {
         transaction {
-            StatusLists.selectAll().associate {
-                it[StatusLists.timePeriod] to (it[StatusLists.counter] to StatusListView(
-                    uncompressed = it[StatusLists.data],
-                    statusBitSize = TokenStatusBitSize.valueOf(it[StatusLists.statusBitSize]),
+            KeyStorageStatusLists.selectAll().associate {
+                it[KeyStorageStatusLists.timePeriod] to (it[KeyStorageStatusLists.counter] to StatusListView(
+                    uncompressed = it[KeyStorageStatusLists.data],
+                    statusBitSize = TokenStatusBitSize.valueOf(it[KeyStorageStatusLists.statusBitSize]),
+                ))
+            }
+        }
+    }
+
+    fun loadClientStatusLists() = catchingUnwrapped {
+        transaction {
+            ClientStatusLists.selectAll().associate {
+                it[ClientStatusLists.timePeriod] to (it[ClientStatusLists.counter] to StatusListView(
+                    uncompressed = it[ClientStatusLists.data],
+                    statusBitSize = TokenStatusBitSize.valueOf(it[ClientStatusLists.statusBitSize]),
                 ))
             }
         }
     }
 
 
-    fun saveStatusLists(data: Map<Int, Pair<Int, StatusListView>>) = runCatching {
+    fun saveKeyStorageStatusLists(data: Map<Int, Pair<Int, StatusListView>>) = catchingUnwrapped {
         data.forEach { timePeriod, (counter, statusListView) ->
             transaction {
-                StatusLists.upsert {
-                    it[StatusLists.timePeriod] = timePeriod
-                    it[StatusLists.data] = statusListView.uncompressed
-                    it[StatusLists.counter] = counter
+                KeyStorageStatusLists.upsert {
+                    it[KeyStorageStatusLists.timePeriod] = timePeriod
+                    it[KeyStorageStatusLists.data] = statusListView.uncompressed
+                    it[KeyStorageStatusLists.counter] = counter
+                    it[statusBitSize] = statusListView.statusBitSize.name
+                }
+            }
+        }
+    }
+
+    fun saveClientStatusLists(data: Map<Int, Pair<Int, StatusListView>>) = catchingUnwrapped {
+        data.forEach { timePeriod, (counter, statusListView) ->
+            transaction {
+                ClientStatusLists.upsert {
+                    it[ClientStatusLists.timePeriod] = timePeriod
+                    it[ClientStatusLists.data] = statusListView.uncompressed
+                    it[ClientStatusLists.counter] = counter
                     it[statusBitSize] = statusListView.statusBitSize.name
                 }
             }

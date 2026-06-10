@@ -5,6 +5,7 @@ import at.asitplus.signum.indispensable.asn1.ObjectIdentifier
 import at.asitplus.signum.indispensable.asn1.encoding.encodeToAsn1Primitive
 import at.asitplus.signum.indispensable.josef.JsonWebToken
 import at.asitplus.signum.indispensable.josef.JwsSigned
+import at.asitplus.signum.indispensable.josef.io.joseCompliantSerializer
 import at.asitplus.signum.indispensable.pki.Pkcs10CertificationRequest
 import at.asitplus.signum.indispensable.pki.Pkcs10CertificationRequestAttribute
 import at.asitplus.signum.indispensable.pki.TbsCertificationRequest
@@ -17,7 +18,8 @@ import at.asitplus.wallet.lib.jws.JwsHeaderNone
 import at.asitplus.wallet.lib.jws.SignJwt
 import at.asitplus.wallet.lib.jws.VerifyJwsSignature
 import at.asitplus.walletprovider.data.ConfigData
-import at.asitplus.walletprovider.data.UnitAttestationRequest
+import at.asitplus.walletprovider.data.InstanceAttestationRequest
+import at.asitplus.walletprovider.data.KeyAttestationRequest
 import at.asitplus.walletprovider.injection.inject
 import at.asitplus.walletprovider.injection.injectDependencies
 import at.asitplus.walletprovider.service.crypto.AttestationService
@@ -29,6 +31,7 @@ import io.ktor.server.testing.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.time.Clock
+import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.minutes
 
 class ApplicationTest {
@@ -48,7 +51,8 @@ class ApplicationTest {
             moduleServer()
         }
 
-        assertEquals(HttpStatusCode.OK, client.get(configData.endpoint.root).status)
+        assertEquals(HttpStatusCode.OK, client.get(configData.endpoint.viewClientStatus).status)
+        assertEquals(HttpStatusCode.OK, client.get(configData.endpoint.viewKeyStorageStatus).status)
         assertEquals(HttpStatusCode.OK, client.get(configData.endpoint.nonce).status)
         assertEquals(HttpStatusCode.OK, client.get(configData.endpoint.challenge).status)
     }
@@ -62,7 +66,7 @@ class ApplicationTest {
             moduleServer()
         }
 
-        client.get("${configData.endpoint.status}/${configData.status.fixedTimePeriod}")
+        client.get("${configData.endpoint.keyStorageStatus}/${configData.status.fixedTimePeriod}")
             .let {
                 assertEquals(HttpStatusCode.OK, it.status)
                 val token = JwsSigned.deserialize<StatusListTokenPayload>(
@@ -86,20 +90,31 @@ class ApplicationTest {
         val instanceKey = EphemeralKeyWithoutCert()
         val attestationService = inject<AttestationService>()
         val instanceAttestation = attestationService.buildInstanceAttestation(
-            Pkcs10CertificationRequest(
+            csr = Pkcs10CertificationRequest(
                 tbsCsr = TbsCertificationRequest(
                     subjectName = listOf(), publicKey = instanceKey.publicKey, listOf(), attributes = listOf(
                         Pkcs10CertificationRequestAttribute(
                             oid = ObjectIdentifier(oid = configData.provider.solutionOid), listOf(
-                                "1.0".encodeToAsn1Primitive()
+                                joseCompliantSerializer.encodeToString(
+                                    InstanceAttestationRequest(
+                                        "1.0",
+                                        1.days
+                                    )
+                                ).encodeToAsn1Primitive(),
                             )
                         )
                     )
                 ),
                 signatureAlgorithm = X509SignatureAlgorithm.RS256,
                 rawSignature = "".encodeToAsn1Primitive()
-            )
+            ),
+            idx = 0
         ).getOrThrow()
+
+        assertEquals(
+            attestationService.statusListReference(0, configData.endpoint.clientStatus),
+            instanceAttestation.payload.clientStatus?.status
+        )
 
         val nonce = attestationService.getNonce()
 
@@ -111,25 +126,35 @@ class ApplicationTest {
                 issuedAt = Clock.System.now() - 5.minutes,
                 expiration = Clock.System.now() + 60.minutes
             ),
-            JsonWebToken.Companion.serializer(),
+            JsonWebToken.serializer(),
         ).getOrThrow()
 
-        val unitKey = EphemeralKeyWithoutCert()
+        val keyAttestationKey = EphemeralKeyWithoutCert()
 
 
-        val unitAttestationRequest = UnitAttestationRequest(
-            token = instanceAttestation.serialize(),
-            proof = instancePop.serialize(),
-            keys = listOf(unitKey.jsonWebKey),
-            storageType = "LOCAL_NATIVE"
+        val keyAttestationRequest = KeyAttestationRequest(
+            token = instanceAttestation.jws.toString(),
+            proof = instancePop.jws.toString(),
+            keys = listOf(keyAttestationKey.jsonWebKey),
+            keyStorage = setOf("iso_18045_high"),
+            userAuthentication = setOf("iso_18045_high"),
+            nonce = null,
+            preferredKeyStorageStatusPeriod = 31.days,
+            supportedAlgorithms = setOf()
 
         )
 
-        val unitAttestation = attestationService.buildUnitAttestation(unitAttestationRequest, 0).getOrThrow()
+        val keyAttestation = attestationService.buildKeyAttestation(keyAttestationRequest, 0).getOrThrow()
         assertEquals(
-            VerifyJwsSignature().invoke(unitAttestation, attestationService.keyMaterial.publicKey).isSuccess,
+            VerifyJwsSignature().invoke(keyAttestation.jws, attestationService.keyMaterial.publicKey).isSuccess,
             true
         )
-        assertEquals(unitAttestation.payload.attestedKeys.first(), unitKey.jsonWebKey)
+        assertEquals(keyAttestation.payload.attestedKeys.first(), keyAttestationKey.jsonWebKey)
+        assertEquals(setOf("iso_18045_high"), keyAttestation.payload.keyStorage)
+        assertEquals(setOf("iso_18045_high"), keyAttestation.payload.userAuthentication)
+        assertEquals(
+            attestationService.statusListReference(0, configData.endpoint.keyStorageStatus),
+            keyAttestation.payload.keyStorageStatus?.status
+        )
     }
 }
