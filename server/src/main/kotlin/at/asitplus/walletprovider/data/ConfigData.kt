@@ -1,7 +1,11 @@
 package at.asitplus.walletprovider.data
 
+import at.asitplus.attestation.supreme.SupremeConfiguration
+import at.asitplus.catching
 import io.ktor.http.*
 import io.ktor.server.config.*
+import net.mamoe.yamlkt.Yaml
+import net.mamoe.yamlkt.toYamlElement
 import kotlin.time.Duration
 
 data class ConfigData(
@@ -103,15 +107,16 @@ data class AttestationConfigData(
             ?.let { Duration.parseIsoString(it) }
             ?: throw Throwable("attestation.instanceAttestation.lifetime is missing from config")
     )
-    val androidPackageName = config.propertyOrNull("attestation.android.packageName")?.getString()
-        ?: throw Throwable("attestation.android.packageName is missing from config")
-    val androidSignerFingerprint =
-        config.propertyOrNull("attestation.android.signerFingerprint")?.getString()
-            ?: throw Throwable("attestation.android.signerFingerprint is missing from config")
-    val iosTeamIdentifier = config.propertyOrNull("attestation.ios.teamIdentifier")?.getString()
-        ?: throw Throwable("attestation.ios.teamIdentifier is missing from config")
-    val iosBundleIdentifier = config.propertyOrNull("attestation.ios.bundleIdentifier")?.getString()
-        ?: throw Throwable("attestation.ios.bundleIdentifier is missing from config")
+
+    val supremeConfiguration = catching {
+        SupremeConfiguration.fromYamlString(
+            Yaml.encodeToString(
+                config.property("supreme").getMap().toYamlElement()
+            )
+        )
+    }.getOrElse {
+        throw Throwable("Unable to parse SupremeConfiguration from config", it)
+    }
 
     data class AttestationDurations(
         val maintenance: Duration,

@@ -1,10 +1,7 @@
 package at.asitplus.walletprovider.service.crypto
 
-import at.asitplus.attestation.IosAttestationConfiguration
-import at.asitplus.attestation.android.AndroidAttestationConfiguration
 import at.asitplus.attestation.supreme.AttestationResponse
 import at.asitplus.attestation.supreme.AttestationVerifier
-import at.asitplus.attestation.supreme.SupremeConfiguration
 import at.asitplus.catching
 import at.asitplus.catchingUnwrapped
 import at.asitplus.openid.OpenIdConstants
@@ -30,7 +27,6 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.encodeToJsonElement
-import kotlin.time.Clock
 import kotlin.time.Clock.System.now
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days
@@ -59,7 +55,7 @@ interface AttestationService {
         val preferredClientStatusPeriod = request.preferredClientStatusPeriod
 
         verifyKeyAttestedKeys(csr).let { response ->
-            when(response) {
+            when (response) {
                 is AttestationResponse.Success -> {
                     val clientKey = csr.tbsCsr.publicKey.toJsonWebKey()
                     Napier.i("Verified key $clientKey", tag = "AttestationService")
@@ -173,31 +169,8 @@ class RealAttestationService(
     override val nonceService = DefaultNonceService()
 
     val attestationValidator = AttestationVerifier(
-        SupremeConfiguration(
-            AndroidAttestationConfiguration.Builder(
-                AndroidAttestationConfiguration.AppData(
-                    configData.attestation.androidPackageName,
-                    setOf(
-                        configData.attestation.androidSignerFingerprint.hexToByteArray(
-                            HexFormat.Default
-                        )
-                    )
-                )
-            )
-                .build(),
-            IosAttestationConfiguration(
-                IosAttestationConfiguration.AppData(
-                    configData.attestation.iosTeamIdentifier,
-                    configData.attestation.iosBundleIdentifier,
-                    sandbox = true
-                ),
-            ),
-            clock = object : SupremeConfiguration.Clock {
-                override val timeSource: Clock
-                    get() = Clock.System
-            })
+        configuration = configData.attestation.supremeConfiguration
     )
-
 
     @OptIn(ExperimentalTime::class)
     override suspend fun verifyKeyAttestedKeys(csr: Pkcs10CertificationRequest): AttestationResponse =
