@@ -55,7 +55,7 @@ fun Application.moduleServer() {
                 provider.httpService.handleViewClientStatusRequest().onSuccess {
                     call.respondHtmlTemplate(it) {}
                 }.onFailure {
-                    Napier.e("handleViewClientStatusRequest failed with $it")
+                    Napier.e("handleViewClientStatusRequest failed with $it", it)
                     call.respond(HttpStatusCode.BadRequest, it.toString())
                 }
             }
