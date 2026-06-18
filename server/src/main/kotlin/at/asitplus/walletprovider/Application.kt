@@ -63,7 +63,7 @@ fun Application.moduleServer() {
                 provider.httpService.handleUpdateClientStatusRequest(call.receiveParameters()).onSuccess {
                     call.respondRedirect(provider.configData.endpoint.viewClientStatus)
                 }.onFailure {
-                    Napier.e("handleUpdateClientStatusRequest failed with $it")
+                    Napier.e("handleUpdateClientStatusRequest failed with $it", it)
                     call.respond(HttpStatusCode.BadRequest, it.toString())
                 }
             }
