@@ -71,7 +71,7 @@ fun Application.moduleServer() {
                 provider.httpService.handleKeyStorageStatusRequest(params = call.parameters).onSuccess {
                     call.respondText(text = it.jws.toString())
                 }.onFailure {
-                    Napier.e("handleKeyStorageStatusRequest failed with $it")
+                    Napier.e("handleKeyStorageStatusRequest failed with $it", it)
                     call.respond(HttpStatusCode.BadRequest, it.toString())
                 }
             }
