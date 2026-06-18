@@ -58,28 +58,30 @@ interface AttestationService {
         val walletSolutionVersion = request.versionName
         val preferredClientStatusPeriod = request.preferredClientStatusPeriod
 
-        when (verifyKeyAttestedKeys(csr)) {
-            is AttestationResponse.Success -> {
-                val clientKey = csr.tbsCsr.publicKey.toJsonWebKey()
-                Napier.i("Verified key $clientKey", tag = "AttestationService")
-                return@catchingUnwrapped BuildClientAttestationJwt(
-                    SignJwt(keyMaterial, JwsHeaderCertOrJwk()),
-                    clientId = configData.provider.clientId,
-                    issuer = configData.provider.issuer,
-                    lifetime = configData.attestation.instanceAttestation.lifetime,
-                    clientKey = clientKey,
-                    walletName = configData.provider.solutionId,
-                    walletVersion = walletSolutionVersion,
-                    walletSolutionCertificationInformation = configData.provider.solutionCertificationInfo,
-                    clientStatus = ClientStatus(
-                        status = statusListReference(idx = idx, configData.endpoint.clientStatus),
-                        expiration = now() + configData.attestation.instanceAttestation.maintenance,
+        verifyKeyAttestedKeys(csr).let { response ->
+            when(response) {
+                is AttestationResponse.Success -> {
+                    val clientKey = csr.tbsCsr.publicKey.toJsonWebKey()
+                    Napier.i("Verified key $clientKey", tag = "AttestationService")
+                    return@catchingUnwrapped BuildClientAttestationJwt(
+                        SignJwt(keyMaterial, JwsHeaderCertOrJwk()),
+                        clientId = configData.provider.clientId,
+                        issuer = configData.provider.issuer,
+                        lifetime = configData.attestation.instanceAttestation.lifetime,
+                        clientKey = clientKey,
+                        walletName = configData.provider.solutionId,
+                        walletVersion = walletSolutionVersion,
+                        walletSolutionCertificationInformation = configData.provider.solutionCertificationInfo,
+                        clientStatus = ClientStatus(
+                            status = statusListReference(idx = idx, configData.endpoint.clientStatus),
+                            expiration = now() + configData.attestation.instanceAttestation.maintenance,
+                        )
                     )
-                )
-            }
+                }
 
-            is AttestationResponse.Failure -> {
-                throw Throwable("KeyAttestedKeys invalid")
+                is AttestationResponse.Failure -> {
+                    throw Throwable("Verifying key attested keys failed with: Type: ${response.kind}, Explanation: ${response.explanation}")
+                }
             }
         }
     }

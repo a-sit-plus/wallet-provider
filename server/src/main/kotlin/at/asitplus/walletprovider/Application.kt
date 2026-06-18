@@ -3,6 +3,7 @@ package at.asitplus.walletprovider
 import at.asitplus.walletprovider.injection.inject
 import at.asitplus.walletprovider.injection.injectDependencies
 import at.asitplus.walletprovider.service.WalletProviderMain
+import io.github.aakira.napier.Napier
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.html.*
@@ -30,6 +31,7 @@ fun Application.moduleServer() {
                 provider.httpService.handleRootPageRequest().onSuccess {
                     call.respondHtmlTemplate(it) {}
                 }.onFailure {
+                    Napier.e("handleRootPageRequest failed with $it")
                     call.respond(HttpStatusCode.BadRequest, it.toString())
                 }
             }
@@ -37,6 +39,7 @@ fun Application.moduleServer() {
                 provider.httpService.handleViewKeyStorageStatusRequest().onSuccess {
                     call.respondHtmlTemplate(it) {}
                 }.onFailure {
+                    Napier.e("handleViewKeyStorageStatusRequest failed with $it")
                     call.respond(HttpStatusCode.BadRequest, it.toString())
                 }
             }
@@ -44,6 +47,7 @@ fun Application.moduleServer() {
                 provider.httpService.handleUpdateKeyStorageStatusRequest(call.receiveParameters()).onSuccess {
                     call.respondRedirect(provider.configData.endpoint.viewKeyStorageStatus)
                 }.onFailure {
+                    Napier.e("handleUpdateKeyStorageStatusRequest failed with $it")
                     call.respond(HttpStatusCode.BadRequest, it.toString())
                 }
             }
@@ -51,6 +55,7 @@ fun Application.moduleServer() {
                 provider.httpService.handleViewClientStatusRequest().onSuccess {
                     call.respondHtmlTemplate(it) {}
                 }.onFailure {
+                    Napier.e("handleViewClientStatusRequest failed with $it")
                     call.respond(HttpStatusCode.BadRequest, it.toString())
                 }
             }
@@ -58,6 +63,7 @@ fun Application.moduleServer() {
                 provider.httpService.handleUpdateClientStatusRequest(call.receiveParameters()).onSuccess {
                     call.respondRedirect(provider.configData.endpoint.viewClientStatus)
                 }.onFailure {
+                    Napier.e("handleUpdateClientStatusRequest failed with $it")
                     call.respond(HttpStatusCode.BadRequest, it.toString())
                 }
             }
@@ -65,6 +71,7 @@ fun Application.moduleServer() {
                 provider.httpService.handleKeyStorageStatusRequest(params = call.parameters).onSuccess {
                     call.respondText(text = it.jws.toString())
                 }.onFailure {
+                    Napier.e("handleKeyStorageStatusRequest failed with $it")
                     call.respond(HttpStatusCode.BadRequest, it.toString())
                 }
             }
@@ -72,6 +79,7 @@ fun Application.moduleServer() {
                 provider.httpService.handleClientStatusRequest(params = call.parameters).onSuccess {
                     call.respondText(text = it.jws.toString())
                 }.onFailure {
+                    Napier.e("handleClientStatusRequest failed with $it")
                     call.respond(HttpStatusCode.BadRequest, it.toString())
                 }
             }
@@ -79,6 +87,7 @@ fun Application.moduleServer() {
                 provider.httpService.handleChallengeRequest().onSuccess {
                     call.respondText(it, contentType = ContentType.Application.Json)
                 }.onFailure {
+                    Napier.e("handleChallengeRequest failed with $it")
                     call.respond(HttpStatusCode.BadRequest, it.toString())
                 }
             }
@@ -86,6 +95,7 @@ fun Application.moduleServer() {
                 provider.httpService.handleNonceRequest().onSuccess {
                     call.respondText(it, contentType = ContentType.Application.Json)
                 }.onFailure {
+                    Napier.e("handleNonceRequest failed with $it")
                     call.respond(HttpStatusCode.BadRequest, it.toString())
                 }
             }
@@ -93,6 +103,7 @@ fun Application.moduleServer() {
                 provider.httpService.handleInstanceRequest(call.receive<ByteArray>()).onSuccess {
                     call.respondText(text = it.jws.toString())
                 }.onFailure {
+                    Napier.e("handleInstanceRequest failed with $it")
                     call.respond(HttpStatusCode.BadRequest, it.toString())
                 }
             }
@@ -100,6 +111,7 @@ fun Application.moduleServer() {
                 provider.httpService.handleKeyAttestationRequest(call.receive<String>()).onSuccess {
                     call.respondText(text = it.jws.toString())
                 }.onFailure {
+                    Napier.e("handleKeyAttestationRequest failed with $it")
                     call.respond(HttpStatusCode.BadRequest, it.toString())
                 }
             }
