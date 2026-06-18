@@ -95,7 +95,7 @@ fun Application.moduleServer() {
                 provider.httpService.handleNonceRequest().onSuccess {
                     call.respondText(it, contentType = ContentType.Application.Json)
                 }.onFailure {
-                    Napier.e("handleNonceRequest failed with $it")
+                    Napier.e("handleNonceRequest failed with $it", it)
                     call.respond(HttpStatusCode.BadRequest, it.toString())
                 }
             }
