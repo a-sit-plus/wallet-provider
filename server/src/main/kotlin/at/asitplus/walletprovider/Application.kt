@@ -47,7 +47,7 @@ fun Application.moduleServer() {
                 provider.httpService.handleUpdateKeyStorageStatusRequest(call.receiveParameters()).onSuccess {
                     call.respondRedirect(provider.configData.endpoint.viewKeyStorageStatus)
                 }.onFailure {
-                    Napier.e("handleUpdateKeyStorageStatusRequest failed with $it")
+                    Napier.e("handleUpdateKeyStorageStatusRequest failed with $it", it)
                     call.respond(HttpStatusCode.BadRequest, it.toString())
                 }
             }
