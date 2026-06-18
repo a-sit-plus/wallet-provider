@@ -87,7 +87,7 @@ fun Application.moduleServer() {
                 provider.httpService.handleChallengeRequest().onSuccess {
                     call.respondText(it, contentType = ContentType.Application.Json)
                 }.onFailure {
-                    Napier.e("handleChallengeRequest failed with $it")
+                    Napier.e("handleChallengeRequest failed with $it", it)
                     call.respond(HttpStatusCode.BadRequest, it.toString())
                 }
             }
