@@ -79,7 +79,7 @@ fun Application.moduleServer() {
                 provider.httpService.handleClientStatusRequest(params = call.parameters).onSuccess {
                     call.respondText(text = it.jws.toString())
                 }.onFailure {
-                    Napier.e("handleClientStatusRequest failed with $it")
+                    Napier.e("handleClientStatusRequest failed with $it", it)
                     call.respond(HttpStatusCode.BadRequest, it.toString())
                 }
             }
