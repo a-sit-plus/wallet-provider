@@ -111,7 +111,7 @@ fun Application.moduleServer() {
                 provider.httpService.handleKeyAttestationRequest(call.receive<String>()).onSuccess {
                     call.respondText(text = it.jws.toString())
                 }.onFailure {
-                    Napier.e("handleKeyAttestationRequest failed with $it")
+                    Napier.e("handleKeyAttestationRequest failed with $it", it)
                     call.respond(HttpStatusCode.BadRequest, it.toString())
                 }
             }
