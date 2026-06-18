@@ -39,7 +39,7 @@ fun Application.moduleServer() {
                 provider.httpService.handleViewKeyStorageStatusRequest().onSuccess {
                     call.respondHtmlTemplate(it) {}
                 }.onFailure {
-                    Napier.e("handleViewKeyStorageStatusRequest failed with $it")
+                    Napier.e("handleViewKeyStorageStatusRequest failed with $it", it)
                     call.respond(HttpStatusCode.BadRequest, it.toString())
                 }
             }
