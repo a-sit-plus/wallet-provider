@@ -103,7 +103,7 @@ fun Application.moduleServer() {
                 provider.httpService.handleInstanceRequest(call.receive<ByteArray>()).onSuccess {
                     call.respondText(text = it.jws.toString())
                 }.onFailure {
-                    Napier.e("handleInstanceRequest failed with $it")
+                    Napier.e("handleInstanceRequest failed with $it", it)
                     call.respond(HttpStatusCode.BadRequest, it.toString())
                 }
             }
