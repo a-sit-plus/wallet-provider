@@ -1,6 +1,13 @@
-# Wallet Provider
-
 <div align="center">
+
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="provider-light.png">
+  <source media="(prefers-color-scheme: light)" srcset="provider-dark.png">
+  <img alt="Wallet Provider based on Ktor and Warden Supreme" src="provider-dark.png">
+</picture>
+<br><br>
+
 <img src="https://raw.githubusercontent.com/a-sit-plus/a-sit-plus.github.io/709e802b3e00cb57916cbb254ca5e1a5756ad2a8/A-SIT%20Plus_%20official_opt.svg" alt="A-SIT Plus Official" />
 <img src="https://img.shields.io/badge/license-Apache%20License%202.0-brightgreen.svg?style=flat" alt="GitHub license" />
 <img src="https://img.shields.io/badge/kotlin-2.3.21-blue.svg?logo=kotlin" alt="Kotlin" />
