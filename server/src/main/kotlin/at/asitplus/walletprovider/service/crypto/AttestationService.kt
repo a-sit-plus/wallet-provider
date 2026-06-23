@@ -10,6 +10,7 @@ import at.asitplus.signum.indispensable.josef.*
 import at.asitplus.signum.indispensable.josef.io.joseCompliantSerializer
 import at.asitplus.signum.indispensable.pki.Pkcs10CertificationRequest
 import at.asitplus.wallet.lib.DefaultNonceService
+import at.asitplus.wallet.lib.agent.FixedTimePeriodProvider
 import at.asitplus.wallet.lib.agent.KeyMaterial
 import at.asitplus.wallet.lib.data.rfc.tokenStatusList.StatusListInfo
 import at.asitplus.wallet.lib.data.rfc3986.toUri
@@ -69,7 +70,14 @@ interface AttestationService {
                         walletVersion = walletSolutionVersion,
                         walletSolutionCertificationInformation = configData.provider.solutionCertificationInfo,
                         clientStatus = ClientStatus(
-                            status = statusListReference(idx = idx, configData.endpoint.clientStatus),
+                            status = statusListReference(
+                                idx = idx, configData.buildEndpointString(
+                                    listOf(
+                                        configData.endpoint.clientStatus,
+                                        FixedTimePeriodProvider.timePeriod.toString()
+                                    )
+                                )
+                            ),
                             expiration = now() + configData.attestation.instanceAttestation.maintenance,
                         )
                     )
@@ -108,7 +116,14 @@ interface AttestationService {
                     userAuthentication = request.userAuthentication,
                     certification = configData.provider.storageCertificationInfo,
                     keyStorageStatus = KeyStorageStatus(
-                        status = statusListReference(idx, configData.endpoint.keyStorageStatus),
+                        status = statusListReference(
+                            idx, configData.buildEndpointString(
+                                listOf(
+                                    configData.endpoint.keyStorageStatus,
+                                    FixedTimePeriodProvider.timePeriod.toString()
+                                )
+                            )
+                        ),
                         expiration = now() + configData.attestation.keyAttestation.maintenance,
                     ),
                 )
