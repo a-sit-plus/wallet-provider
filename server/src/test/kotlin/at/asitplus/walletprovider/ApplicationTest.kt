@@ -10,6 +10,7 @@ import at.asitplus.signum.indispensable.pki.Pkcs10CertificationRequest
 import at.asitplus.signum.indispensable.pki.Pkcs10CertificationRequestAttribute
 import at.asitplus.signum.indispensable.pki.TbsCertificationRequest
 import at.asitplus.wallet.lib.agent.EphemeralKeyWithoutCert
+import at.asitplus.wallet.lib.agent.FixedTimePeriodProvider
 import at.asitplus.wallet.lib.data.rfc.tokenStatusList.StatusList
 import at.asitplus.wallet.lib.data.rfc.tokenStatusList.StatusListTokenPayload
 import at.asitplus.wallet.lib.data.rfc.tokenStatusList.primitives.TokenStatusBitSize
@@ -112,7 +113,8 @@ class ApplicationTest {
         ).getOrThrow()
 
         assertEquals(
-            attestationService.statusListReference(0, configData.endpoint.clientStatus),
+            attestationService.statusListReference(0, configData.buildEndpointString(listOf(configData.endpoint.clientStatus,
+                FixedTimePeriodProvider.timePeriod.toString()))),
             instanceAttestation.payload.clientStatus?.status
         )
 
@@ -153,7 +155,8 @@ class ApplicationTest {
         assertEquals(setOf("iso_18045_high"), keyAttestation.payload.keyStorage)
         assertEquals(setOf("iso_18045_high"), keyAttestation.payload.userAuthentication)
         assertEquals(
-            attestationService.statusListReference(0, configData.endpoint.keyStorageStatus),
+            attestationService.statusListReference(0, configData.buildEndpointString(listOf(configData.endpoint.keyStorageStatus,
+                FixedTimePeriodProvider.timePeriod.toString()))),
             keyAttestation.payload.keyStorageStatus?.status
         )
     }
