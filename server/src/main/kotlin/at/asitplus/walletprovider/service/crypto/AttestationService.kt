@@ -27,6 +27,8 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.encodeToJsonElement
+import kotlin.random.Random
+import kotlin.random.nextUInt
 import kotlin.time.Clock.System.now
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days
@@ -76,7 +78,7 @@ interface AttestationService {
                 }
 
                 is AttestationResponse.Failure -> {
-                    throw Throwable("Verifying key attested keys failed with: Type: ${response.kind}, Explanation: ${response.explanation}")
+                    throw Throwable("AttestationResponse.Failure: Type: ${response.kind}, Explanation: ${response.explanation}")
                 }
             }
         }
@@ -175,7 +177,19 @@ class RealAttestationService(
     @OptIn(ExperimentalTime::class)
     override suspend fun verifyKeyAttestedKeys(csr: Pkcs10CertificationRequest): AttestationResponse =
         attestationValidator.verifyAttestation(
-            csr
+            csr = csr,
+            onPreAttestationError = {
+                "onPreAttestationError: type: ${this.javaClass.simpleName}, errorId: ${createErrorId()}}".let {
+                    Napier.w("$it, message: ${this.throwable}, $csr")
+                    it
+                }
+            },
+            onAttestationError = { debugStatement ->
+                "onAttestationError: type: ${this.javaClass.simpleName}, errorId: ${createErrorId()}".let {
+                    Napier.w("$it, message: ${debugStatement.serializeCompact()}, $csr", cause)
+                    it
+                }
+            }
         ) { listOf() }
 
     override suspend fun issueChallenge() = Json.encodeToString(
@@ -185,3 +199,5 @@ class RealAttestationService(
         )
     )
 }
+
+fun createErrorId() = Random.nextUInt().toString(radix = 36)
