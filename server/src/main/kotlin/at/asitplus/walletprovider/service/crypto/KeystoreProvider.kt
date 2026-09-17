@@ -36,7 +36,7 @@ class RealKeyStoreProvider(val config: ConfigData) : KeyStoreProvider {
         val signer: Signer = SignatureAlgorithm.ECDSAwithSHA256.signerFor(privateKey).getOrThrow()
         ProviderKeyMaterial(signer, certificate)
     }.getOrElse { e ->
-        throw Throwable("Unable to load KeyMaterial $e")
+        throw Throwable("Unable to load KeyMaterial", e)
     }
 }
 

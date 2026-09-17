@@ -65,7 +65,6 @@ interface AttestationService {
                     return@catchingUnwrapped BuildClientAttestationJwt(
                         SignJwt(keyMaterial, JwsHeaderCertOrJwk()),
                         clientId = configData.provider.clientId,
-                        issuer = configData.provider.issuer,
                         lifetime = configData.attestation.instanceAttestation.lifetime,
                         clientKey = clientKey,
                         walletName = configData.provider.solutionId,

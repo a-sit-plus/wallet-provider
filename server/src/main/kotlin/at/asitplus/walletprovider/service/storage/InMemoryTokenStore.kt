@@ -1,12 +1,17 @@
 package at.asitplus.walletprovider.service.storage
 
+import at.asitplus.KmmResult
+import at.asitplus.catching
 import at.asitplus.catchingUnwrapped
+import at.asitplus.wallet.lib.agent.CredentialToBeIssued
 import at.asitplus.wallet.lib.data.rfc.tokenStatusList.StatusListView
 import at.asitplus.wallet.lib.data.rfc.tokenStatusList.agents.ReferencedTokenStore
 import at.asitplus.wallet.lib.data.rfc.tokenStatusList.iso18013.Identifier
 import at.asitplus.wallet.lib.data.rfc.tokenStatusList.iso18013.IdentifierInfo
 import at.asitplus.wallet.lib.data.rfc.tokenStatusList.primitives.TokenStatus
 import at.asitplus.wallet.lib.data.rfc.tokenStatusList.primitives.TokenStatusBitSize
+import com.benasher44.uuid.uuid3Of
+import com.benasher44.uuid.uuid4
 
 data class TokenMapEntry(
     var counter: Int, val map: MutableMap<Int, TokenStatus>
@@ -40,6 +45,17 @@ class InMemoryTokenStore(
             val counter = tokenMap[timePeriod]?.counter ?: return@mapNotNull null
             timePeriod to (counter to getStatusListView(timePeriod))
         }.toMap()
+
+    override suspend fun storeReferencedToken(
+        credential: CredentialToBeIssued,
+        timePeriod: Int,
+    ): KmmResult<ReferencedTokenStore.StoredCredentialReference> = catching {
+        ReferencedTokenStore.StoredCredentialReference(
+            id = uuid4().toString(),
+            timePeriod = timePeriod,
+            statusListIndex = getNextFreeIndex(timePeriod).toULong(),
+        )
+    }
 
 
     override fun getStatusListView(timePeriod: Int): StatusListView {
