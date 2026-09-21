@@ -15,9 +15,8 @@
 
 A Kotlin-based backend service for EUDI Wallet ecosystem attestation flows, providing challenges, token issuance, and status list management.
 
-| ⚠️ Warning                                             |
-|:-------------------------------------------------------|
-| This service is intended as a Technology Demonstrator! |
+> [!WARNING]  
+> This service is intended as a Technology Demonstrator!
 
 ## **Demo Setup**
 
