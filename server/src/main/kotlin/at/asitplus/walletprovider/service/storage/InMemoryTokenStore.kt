@@ -10,11 +10,10 @@ import at.asitplus.wallet.lib.data.rfc.tokenStatusList.iso18013.Identifier
 import at.asitplus.wallet.lib.data.rfc.tokenStatusList.iso18013.IdentifierInfo
 import at.asitplus.wallet.lib.data.rfc.tokenStatusList.primitives.TokenStatus
 import at.asitplus.wallet.lib.data.rfc.tokenStatusList.primitives.TokenStatusBitSize
-import com.benasher44.uuid.uuid3Of
-import com.benasher44.uuid.uuid4
+import kotlin.uuid.Uuid
 
 data class TokenMapEntry(
-    var counter: Int, val map: MutableMap<Int, TokenStatus>
+    var counter: Int, val map: MutableMap<Int, TokenStatus>,
 )
 
 class InMemoryTokenStore(
@@ -51,7 +50,7 @@ class InMemoryTokenStore(
         timePeriod: Int,
     ): KmmResult<ReferencedTokenStore.StoredCredentialReference> = catching {
         ReferencedTokenStore.StoredCredentialReference(
-            id = uuid4().toString(),
+            id = Uuid.random().toString(),
             timePeriod = timePeriod,
             statusListIndex = getNextFreeIndex(timePeriod).toULong(),
         )
@@ -77,7 +76,7 @@ class InMemoryTokenStore(
     }
 
     override fun setStatus(
-        timePeriod: Int, index: ULong, status: TokenStatus
+        timePeriod: Int, index: ULong, status: TokenStatus,
     ): Boolean {
         if (status.value > tokenStatusBitSize.maxValue) {
             throw IllegalStateException("Token store only accepts token statuses of bitlength `${tokenStatusBitSize.value}`.")
