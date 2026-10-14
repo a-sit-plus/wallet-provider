@@ -70,6 +70,7 @@ class ApplicationTest {
         client.get("${configData.endpoint.keyStorageStatus}/${configData.status.fixedTimePeriod}")
             .let {
                 assertEquals(HttpStatusCode.OK, it.status)
+                assertEquals(ContentType("application", "statuslist+jwt"), it.contentType()?.withoutParameters())
                 val token = JwsSigned.deserialize<StatusListTokenPayload>(
                     it = it.bodyAsText(),
                     deserializationStrategy = StatusListTokenPayload.serializer(),
