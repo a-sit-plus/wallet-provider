@@ -16,6 +16,9 @@ import kotlin.uuid.ExperimentalUuidApi
 
 fun main(args: Array<String>): Unit = EngineMain.main(args)
 
+/** Media type of a Status List Token in JWT format, see Token Status List spec */
+private val ContentTypeStatusListJwt = ContentType("application", "statuslist+jwt")
+
 @OptIn(ExperimentalTime::class, ExperimentalUuidApi::class)
 
 fun Application.module() {
@@ -69,7 +72,7 @@ fun Application.moduleServer() {
             }
             get("${provider.configData.endpoint.keyStorageStatus}/{period}") {
                 provider.httpService.handleKeyStorageStatusRequest(params = call.parameters).onSuccess {
-                    call.respondText(text = it.jws.toString())
+                    call.respondText(text = it.jws.toString(), contentType = ContentTypeStatusListJwt)
                 }.onFailure {
                     Napier.e("handleKeyStorageStatusRequest failed with $it", it)
                     call.respond(HttpStatusCode.BadRequest, it.toString())
@@ -77,7 +80,7 @@ fun Application.moduleServer() {
             }
             get("${provider.configData.endpoint.clientStatus}/{period}") {
                 provider.httpService.handleClientStatusRequest(params = call.parameters).onSuccess {
-                    call.respondText(text = it.jws.toString())
+                    call.respondText(text = it.jws.toString(), contentType = ContentTypeStatusListJwt)
                 }.onFailure {
                     Napier.e("handleClientStatusRequest failed with $it", it)
                     call.respond(HttpStatusCode.BadRequest, it.toString())
