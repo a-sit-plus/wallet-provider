@@ -4,6 +4,7 @@ import at.asitplus.wallet.lib.data.rfc.tokenStatusList.primitives.TokenStatus
 import at.asitplus.walletprovider.config.SecurityConfig
 import at.asitplus.walletprovider.service.network.HttpService
 import at.asitplus.walletprovider.service.storage.ClientTokenStoreService
+import at.asitplus.walletprovider.service.storage.DatabaseService
 import at.asitplus.walletprovider.service.storage.KeyStorageTokenStoreService
 import org.hamcrest.Matchers.containsString
 import org.hamcrest.Matchers.not
@@ -35,6 +36,9 @@ class AdminPagesTest : ProviderTestSupport() {
 
     @Autowired
     lateinit var clientTokenStoreService: ClientTokenStoreService
+
+    @Autowired
+    lateinit var databaseService: DatabaseService
 
     private val admin = user("admin").roles("ADMIN")
 
@@ -115,6 +119,11 @@ class AdminPagesTest : ProviderTestSupport() {
             .andExpect(status().is3xxRedirection)
             .andExpect(redirectedUrl(SecurityConfig.ADMIN_HOME))
         assertEquals(1, httpService.keyStorageStatuses()[index.toUInt()])
+
+        // Stored right away, not only on the next scheduled export
+        val stored = databaseService.loadKeyStorageStatusLists().getOrThrow()
+            .getValue(configData.status.fixedTimePeriod).second
+        assertEquals(TokenStatus.Invalid, stored[index.toUInt()])
     }
 
     @Test

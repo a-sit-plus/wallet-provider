@@ -1,18 +1,24 @@
 package at.asitplus.walletprovider
 
 import at.asitplus.wallet.lib.data.rfc.tokenStatusList.primitives.TokenStatus
+import at.asitplus.wallet.lib.agent.KeyMaterial
 import at.asitplus.walletprovider.service.storage.DatabaseService
 import at.asitplus.walletprovider.service.storage.InMemoryTokenStore
+import at.asitplus.walletprovider.service.storage.KeyStorageTokenStoreService
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.beans.factory.annotation.Autowired
 import kotlin.test.assertEquals
+import kotlin.time.Duration.Companion.hours
 
 /** The status lists are exported to the database periodically and imported again on startup. */
 class StatusPersistenceTest : ProviderTestSupport() {
 
     @Autowired
     lateinit var databaseService: DatabaseService
+
+    @Autowired
+    lateinit var keyMaterial: KeyMaterial
 
     /** Not used by the running provider, so its scheduled export does not overwrite the rows of this test */
     private val period = 4711
@@ -42,6 +48,23 @@ class StatusPersistenceTest : ProviderTestSupport() {
         val restored = InMemoryTokenStore().apply { importData(databaseService.loadClientStatusLists().getOrThrow()) }
         assertEquals(store.getStatusListView(period), restored.getStatusListView(period))
         assertEquals(5, restored.getNextFreeIndex(period), "index counter is restored")
+    }
+
+    @Test
+    fun `status lists are written on shutdown`() {
+        // No scheduled export before the shutdown
+        val service = KeyStorageTokenStoreService(
+            InMemoryTokenStore(), databaseService, keyMaterial, "http://127.0.0.1", exportInterval = 1.hours
+        )
+        val shutdownPeriod = 4712
+        repeat(3) { service.tokenStore.getNextFreeIndex(shutdownPeriod) }
+        service.tokenStore.setStatus(shutdownPeriod, 1uL, TokenStatus.Invalid)
+
+        service.close()
+
+        val (counter, view) = databaseService.loadKeyStorageStatusLists().getOrThrow().getValue(shutdownPeriod)
+        assertEquals(3, counter)
+        assertEquals(service.tokenStore.getStatusListView(shutdownPeriod), view)
     }
 
     @Test

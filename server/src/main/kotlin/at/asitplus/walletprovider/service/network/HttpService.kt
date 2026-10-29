@@ -49,16 +49,16 @@ class HttpService(
         return tokenStore.getStatusListView(period).getMap().filterKeys { it < issued.toUInt() }
     }
 
-    fun updateKeyStorageStatuses(statuses: Map<ULong, UInt>) = catchingUnwrapped {
-        statuses.forEach { (index, status) ->
-            keyStorageTokenStoreService.tokenStore.setStatus(configData.status.fixedTimePeriod, index, TokenStatus(status))
-        }
-    }
+    fun updateKeyStorageStatuses(statuses: Map<ULong, UInt>) = keyStorageTokenStoreService.updateStatuses(statuses)
 
-    fun updateClientStatuses(statuses: Map<ULong, UInt>) = catchingUnwrapped {
+    fun updateClientStatuses(statuses: Map<ULong, UInt>) = clientTokenStoreService.updateStatuses(statuses)
+
+    /** Sets the [statuses] by status list index and writes them to the database right away, not only on the next export */
+    private fun TokenStoreService.updateStatuses(statuses: Map<ULong, UInt>) = catchingUnwrapped {
         statuses.forEach { (index, status) ->
-            clientTokenStoreService.tokenStore.setStatus(configData.status.fixedTimePeriod, index, TokenStatus(status))
+            tokenStore.setStatus(configData.status.fixedTimePeriod, index, TokenStatus(status))
         }
+        saveToDatabase(tokenStore.exportData()).getOrThrow()
     }
 
     suspend fun handleChallengeRequest() = catchingUnwrapped {
