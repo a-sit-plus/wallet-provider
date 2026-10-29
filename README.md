@@ -127,24 +127,22 @@ e.g. `ADMIN_PASSWORD` for `admin.password`.
 
 ### Docker Compose
 `compose.yaml` builds and starts the provider on `http://localhost:8080`, without a config server: it uses the
-defaults of `application.yaml` (including the `supreme` section), with the settings below from environment variables.
+defaults of `application.yaml` (including the `supreme` section), with the settings in its `environment`
+(`KEYSTORE_ALIAS`, `KEYSTORE_SECRET`, `ADMIN_PASSWORD`, `PROVIDER_PUBLICCONTEXT`, all `CHANGEME` or local defaults).
 Like the default configuration, it keeps the status lists in an in-memory database, so revocations are lost when the
 container restarts; set `SPRING_DATASOURCE_URL` (and username/password) in `environment` for a persistent database.
 
-Create the signing key in `./vault` (mounted read-only as `/vault`) and the secrets in `.env` (both gitignored):
+Create the signing key in `./vault` (mounted read-only as `/vault`, gitignored) with the alias and password of
+`compose.yaml`, and start the provider:
 ```bash
 mkdir vault
-keytool -genkeypair -alias provider -keyalg EC -groupname secp256r1 -storetype PKCS12 -keystore vault/keystore.p12 -validity 3650
-cat > .env <<'END'
-KEYSTORE_SECRET=<password of vault/keystore.p12>
-ADMIN_PASSWORD=<password of the admin login>
-# Optional: public URL of the provider (used in the status list references), default http://localhost:8080
-PUBLIC_CONTEXT=https://wallet-provider.example
-END
+keytool -genkeypair -alias CHANGEME -keyalg EC -groupname secp256r1 -storetype PKCS12 -keystore vault/keystore.p12 \
+  -storepass CHANGEME -validity 3650
 docker compose up --build
 ```
-Set `KEYSTORE_ALIAS` in `.env` if the key has another alias than `provider`. Further settings can be added to the
-`environment` of `compose.yaml`, e.g. `PROVIDER_SOLUTIONID` for `provider.solutionId`.
+The admin pages are reachable with user `admin` and the `ADMIN_PASSWORD` of `compose.yaml`. Change the passwords in
+`compose.yaml` (and of the keystore accordingly) for anything but a local demo. Further settings can be added to its
+`environment`, e.g. `PROVIDER_SOLUTIONID` for `provider.solutionId`.
 
 ## **Endpoints**
 
