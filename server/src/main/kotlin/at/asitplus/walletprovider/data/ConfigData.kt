@@ -1,5 +1,6 @@
 package at.asitplus.walletprovider.data
 
+import at.asitplus.wallet.lib.agent.FixedTimePeriodProvider
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.stereotype.Component
 import org.springframework.web.util.UriComponentsBuilder
@@ -83,5 +84,6 @@ data class AdminConfigData(
 )
 
 class StatusListConfigData {
-    val fixedTimePeriod = 1
+    /** The only time period: the attestations reference the status lists of [FixedTimePeriodProvider] */
+    val fixedTimePeriod = FixedTimePeriodProvider.timePeriod
 }

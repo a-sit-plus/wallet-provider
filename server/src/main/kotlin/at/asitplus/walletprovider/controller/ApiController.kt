@@ -1,5 +1,6 @@
 package at.asitplus.walletprovider.controller
 
+import at.asitplus.walletprovider.data.ConfigData
 import at.asitplus.walletprovider.service.network.HttpService
 import io.github.aakira.napier.Napier
 import kotlinx.coroutines.runBlocking
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController
 /** The endpoints used by the wallet app and by verifiers checking the revocation status. */
 @RestController
 class ApiController(
+    private val configData: ConfigData,
     private val httpService: HttpService,
 ) {
     companion object {
@@ -23,16 +25,23 @@ class ApiController(
     }
 
     @GetMapping("\${endpoints.keyStorageStatus}/{period}")
-    fun keyStorageStatus(@PathVariable period: Int) = runBlocking {
+    fun keyStorageStatus(@PathVariable period: Int) = ifKnownPeriod(period) {
         httpService.handleKeyStorageStatusRequest(period)
             .respond("handleKeyStorageStatusRequest", STATUS_LIST_JWT) { it.jws.toString().encodeToByteArray() }
     }
 
     @GetMapping("\${endpoints.clientStatus}/{period}")
-    fun clientStatus(@PathVariable period: Int) = runBlocking {
+    fun clientStatus(@PathVariable period: Int) = ifKnownPeriod(period) {
         httpService.handleClientStatusRequest(period)
             .respond("handleClientStatusRequest", STATUS_LIST_JWT) { it.jws.toString().encodeToByteArray() }
     }
+
+    /**
+     * Status lists exist only for the time period the attestations reference; any other one is `404 Not Found`, as the
+     * store would otherwise create (and keep) a list for each period requested.
+     */
+    private fun ifKnownPeriod(period: Int, response: suspend () -> ResponseEntity<Any>): ResponseEntity<Any> =
+        if (period == configData.status.fixedTimePeriod) runBlocking { response() } else ResponseEntity.notFound().build()
 
     @GetMapping("\${endpoints.challenge}")
     fun challenge() = runBlocking {

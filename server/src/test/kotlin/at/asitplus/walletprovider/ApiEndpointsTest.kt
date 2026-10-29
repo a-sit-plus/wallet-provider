@@ -38,6 +38,7 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.minutes
@@ -156,6 +157,19 @@ class ApiEndpointsTest : ProviderTestSupport() {
         ).andExpect(status().isBadRequest)
         mockMvc.perform(post(configData.endpoint.keyAttestation).contentType(MediaType.APPLICATION_JSON).content("{}"))
             .andExpect(status().isBadRequest)
+    }
+
+    @Test
+    fun `status lists of other time periods are not found`() {
+        val otherPeriods = listOf(period + 1, 0, -1, Int.MAX_VALUE)
+        for (endpoint in listOf(configData.endpoint.clientStatus, configData.endpoint.keyStorageStatus)) {
+            for (otherPeriod in otherPeriods) {
+                mockMvc.perform(get("$endpoint/$otherPeriod")).andExpect(status().isNotFound)
+            }
+        }
+        // No status lists were created for them
+        assertTrue(httpService.clientTokenStoreService.tokenStore.exportData().keys.none { it in otherPeriods })
+        assertTrue(httpService.keyStorageTokenStoreService.tokenStore.exportData().keys.none { it in otherPeriods })
     }
 
     @Test
