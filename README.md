@@ -127,11 +127,12 @@ Set `SPRING_CLOUD_CONFIG_FAIL_FAST=true` to stop instead. Any setting can also b
 e.g. `ADMIN_PASSWORD` for `admin.password`.
 
 ### Docker Compose
-`compose.yaml` builds and starts the provider on `http://localhost:8080`, without a config server: it uses the
-defaults of `application.yaml` (including the `supreme` section), with the settings in its `environment`
-(`KEYSTORE_ALIAS`, `KEYSTORE_SECRET`, `ADMIN_PASSWORD`, `PROVIDER_PUBLICCONTEXT`, all `CHANGEME` or local defaults).
-Like the default configuration, it keeps the status lists in an in-memory database, so revocations are lost when the
-container restarts; set `SPRING_DATASOURCE_URL` (and username/password) in `environment` for a persistent database.
+`compose.yaml` builds and starts the provider on `http://localhost:8080` together with a PostgreSQL database, without
+a config server: the provider uses the defaults of `application.yaml` (including the `supreme` section), with the
+settings in its `environment` (`KEYSTORE_ALIAS`, `KEYSTORE_SECRET`, `ADMIN_PASSWORD`, `PROVIDER_PUBLICCONTEXT` and the
+`SPRING_DATASOURCE_*` connection, all `CHANGEME` or local defaults). The provider starts once the database accepts
+connections; Flyway then creates the schema `wallet_provider`. The status lists are kept in the volume `postgres-data`
+across restarts;
 
 Create the signing key in `./vault` (mounted read-only as `/vault`, gitignored) with the alias and password of
 `compose.yaml`, and start the provider:

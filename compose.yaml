@@ -1,4 +1,20 @@
 services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      - POSTGRES_DB=wallet_provider
+      - POSTGRES_USER=wallet_provider
+      - POSTGRES_PASSWORD=CHANGEME
+    volumes:
+      # Status lists, kept across restarts; `docker compose down -v` deletes them
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      # Over TCP, as the provider connects: during the init scripts PostgreSQL only listens on its local socket
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U wallet_provider -d wallet_provider"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   provider:
     build:
       context: ./
@@ -7,10 +23,19 @@ services:
       - "8080:8080"
     volumes:
       - ./vault:/vault:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
     environment:
       - SPRING_CLOUD_CONFIG_ENABLED=false
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/wallet_provider
+      - SPRING_DATASOURCE_USERNAME=wallet_provider
+      - SPRING_DATASOURCE_PASSWORD=CHANGEME
       - PROVIDER_PUBLICCONTEXT=http://localhost:8080
       - KEYSTORE_FILE=/vault/keystore.p12
       - KEYSTORE_ALIAS=CHANGEME
       - KEYSTORE_SECRET=CHANGEME
       - ADMIN_PASSWORD=CHANGEME
+
+volumes:
+  postgres-data:
