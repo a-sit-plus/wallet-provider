@@ -16,12 +16,17 @@ data class TokenMapEntry(
     var counter: Int, val map: MutableMap<Int, TokenStatus>,
 )
 
+/**
+ * The status lists by time period. Its functions are synchronized, as requests, the admin pages and the scheduled export
+ * use it from several threads at once; e.g. two attestations must not get the same index.
+ */
 class InMemoryTokenStore(
     val tokenStatusBitSize: TokenStatusBitSize = TokenStatusBitSize.TWO,
 ) : ReferencedTokenStore {
 
     private val tokenMap = mutableMapOf<Int, TokenMapEntry>()
 
+    @Synchronized
     fun getNextFreeIndex(timePeriod: Int): Int {
         val entry = tokenMap.getOrPut(timePeriod) {
             TokenMapEntry(0, mutableMapOf())
@@ -31,6 +36,7 @@ class InMemoryTokenStore(
         }
     }
 
+    @Synchronized
     fun importData(data: Map<Int, Pair<Int, StatusListView>>) {
         data.forEach { timePeriod, (counter, statusListView) ->
             tokenMap[timePeriod] = TokenMapEntry(counter, statusListView.getMap().map {
@@ -39,6 +45,7 @@ class InMemoryTokenStore(
         }
     }
 
+    @Synchronized
     fun exportData() =
         tokenMap.mapNotNull { (timePeriod, _) ->
             val counter = tokenMap[timePeriod]?.counter ?: return@mapNotNull null
@@ -57,6 +64,7 @@ class InMemoryTokenStore(
     }
 
 
+    @Synchronized
     override fun getStatusListView(timePeriod: Int): StatusListView {
         val timePeriodStatusMap = tokenMap.getOrPut(timePeriod, { TokenMapEntry(0, mutableMapOf()) })
         val highestIndex = timePeriodStatusMap.map.keys.maxOrNull() ?: 0
@@ -75,6 +83,7 @@ class InMemoryTokenStore(
         TODO("Not yet implemented")
     }
 
+    @Synchronized
     override fun setStatus(
         timePeriod: Int, index: ULong, status: TokenStatus,
     ): Boolean {

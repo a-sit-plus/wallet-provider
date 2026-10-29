@@ -8,7 +8,11 @@ import at.asitplus.walletprovider.service.storage.KeyStorageTokenStoreService
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.beans.factory.annotation.Autowired
+import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.hours
 
 /** The status lists are exported to the database periodically and imported again on startup. */
@@ -86,6 +90,44 @@ class InMemoryTokenStoreTest {
         val store = InMemoryTokenStore()
         assertEquals(listOf(0, 1, 2), List(3) { store.getNextFreeIndex(1) })
         assertEquals(0, store.getNextFreeIndex(2))
+    }
+
+    /** Runs [action] [times] times on each of [threads] threads at once, and returns the errors */
+    private fun inParallel(threads: Int, times: Int, action: (thread: Int) -> Unit): List<Throwable> {
+        val errors = ConcurrentLinkedQueue<Throwable>()
+        val pool = Executors.newFixedThreadPool(threads)
+        repeat(threads) { thread ->
+            pool.execute { repeat(times) { runCatching { action(thread) }.onFailure { errors.add(it) } } }
+        }
+        pool.shutdown()
+        assertTrue(pool.awaitTermination(1, TimeUnit.MINUTES))
+        return errors.toList()
+    }
+
+    @Test
+    fun `concurrent attestations get distinct indices`() {
+        val store = InMemoryTokenStore()
+        val indices = ConcurrentLinkedQueue<Int>()
+        val errors = inParallel(threads = 8, times = 500) { indices.add(store.getNextFreeIndex(1)) }
+
+        assertEquals(emptyList(), errors)
+        assertEquals((0 until 4000).toList(), indices.sorted())
+    }
+
+    @Test
+    fun `exports while statuses change do not fail`() {
+        val store = InMemoryTokenStore()
+        val errors = inParallel(threads = 4, times = 500) { thread ->
+            if (thread == 0) {
+                store.exportData()
+            } else {
+                // New time periods add entries to the store while it is exported
+                val period = thread * 1000 + store.getNextFreeIndex(thread) % 50
+                store.setStatus(period, store.getNextFreeIndex(period).toULong(), TokenStatus.Invalid)
+            }
+        }
+
+        assertEquals(emptyList(), errors)
     }
 
     @Test
