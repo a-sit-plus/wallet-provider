@@ -156,6 +156,9 @@ The admin pages are reachable with user `admin` and the `ADMIN_PASSWORD` of `com
 | `/api/v1/instanceAttestation` | POST   | JSON-encoded `InstanceAttestationRequest` |
 | `/api/v1/keyAttestation`      | POST   | JSON-encoded `KeyAttestationRequest`      |
 
+Both POST requests are limited to `supreme.maxAttestationPayloadBytes` (Warden Supreme's limit for attestation proofs,
+1 MiB by default); larger ones are answered with `413 Content Too Large`.
+
 `/api/v1/instanceAttestation` returns a Wallet Instance Attestation which is a jwt of type `oauth-client-attestation+jwt` 
 extended with `wallet_name`, `wallet_version`, `wallet_solution_certification_information` and `client_status` fields according to the ts3-wallet-unit-attestation. 
 

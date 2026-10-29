@@ -1,15 +1,17 @@
 package at.asitplus.walletprovider.controller
 
+import at.asitplus.attestation.supreme.SupremeConfiguration
 import at.asitplus.walletprovider.data.ConfigData
 import at.asitplus.walletprovider.service.network.HttpService
 import io.github.aakira.napier.Napier
+import jakarta.servlet.http.HttpServletRequest
 import kotlinx.coroutines.runBlocking
+import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
-import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RestController
 
 /** The endpoints used by the wallet app and by verifiers checking the revocation status. */
@@ -17,7 +19,14 @@ import org.springframework.web.bind.annotation.RestController
 class ApiController(
     private val configData: ConfigData,
     private val httpService: HttpService,
+    supremeConfiguration: SupremeConfiguration,
 ) {
+    /**
+     * Largest accepted body of the attestation requests: Warden Supreme's limit for attestation proofs
+     * (`supreme.maxAttestationPayloadBytes`, 1 MiB by default), which a key attestation request stays far below
+     */
+    private val maxRequestBytes = supremeConfiguration.maxAttestationPayloadBytes
+
     companion object {
         /** Media type of a Status List Token in JWT format, see Token Status List spec */
         val STATUS_LIST_JWT = MediaType("application", "statuslist+jwt")
@@ -54,15 +63,31 @@ class ApiController(
     }
 
     @PostMapping("\${endpoints.instanceAttestation}")
-    fun instanceAttestation(@RequestBody request: ByteArray) = runBlocking {
-        httpService.handleInstanceRequest(request)
+    fun instanceAttestation(request: HttpServletRequest) = withLimitedBody(request) { body ->
+        httpService.handleInstanceRequest(body)
             .respond("handleInstanceRequest", TEXT_PLAIN_UTF8) { it.jws.toString() }
     }
 
     @PostMapping("\${endpoints.keyAttestation}")
-    fun keyAttestation(@RequestBody request: String) = runBlocking {
-        httpService.handleKeyAttestationRequest(request)
+    fun keyAttestation(request: HttpServletRequest) = withLimitedBody(request) { body ->
+        httpService.handleKeyAttestationRequest(body.decodeToString())
             .respond("handleKeyAttestationRequest", TEXT_PLAIN_UTF8) { it.jws.toString() }
+    }
+
+    /**
+     * Reads at most [maxRequestBytes] of the request body and passes it to [response]; a larger body is answered with
+     * `413 Content Too Large` without reading the rest of it into memory.
+     */
+    private fun withLimitedBody(
+        request: HttpServletRequest,
+        response: suspend (body: ByteArray) -> ResponseEntity<Any>,
+    ): ResponseEntity<Any> {
+        val body = request.takeIf { it.contentLengthLong <= maxRequestBytes }
+            ?.inputStream?.readNBytes(maxRequestBytes + 1)
+            ?.takeIf { it.size <= maxRequestBytes }
+            ?: return ResponseEntity.status(HttpStatus.CONTENT_TOO_LARGE).contentType(TEXT_PLAIN_UTF8)
+                .body("Request larger than $maxRequestBytes bytes")
+        return runBlocking { response(body) }
     }
 
     /**

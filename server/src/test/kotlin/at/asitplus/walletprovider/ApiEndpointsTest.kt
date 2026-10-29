@@ -1,5 +1,6 @@
 package at.asitplus.walletprovider
 
+import at.asitplus.attestation.supreme.SupremeConfiguration
 import at.asitplus.openid.ClientNonceResponse
 import at.asitplus.signum.indispensable.X509SignatureAlgorithm
 import at.asitplus.signum.indispensable.asn1.ObjectIdentifier
@@ -49,6 +50,9 @@ class ApiEndpointsTest : ProviderTestSupport() {
 
     @Autowired
     lateinit var httpService: HttpService
+
+    @Autowired
+    lateinit var supremeConfiguration: SupremeConfiguration
 
     private val period get() = configData.status.fixedTimePeriod
 
@@ -169,6 +173,15 @@ class ApiEndpointsTest : ProviderTestSupport() {
         // Rejected requests do not use up status list indices
         assertEquals(issuedClient, issuedIndices(httpService.clientTokenStoreService))
         assertEquals(issuedKeyStorage, issuedIndices(httpService.keyStorageTokenStoreService))
+    }
+
+    @Test
+    fun `requests larger than the limit are refused`() {
+        val tooLarge = ByteArray(supremeConfiguration.maxAttestationPayloadBytes + 1) { 'a'.code.toByte() }
+        for (endpoint in listOf(configData.endpoint.instanceAttestation, configData.endpoint.keyAttestation)) {
+            mockMvc.perform(post(endpoint).contentType(MediaType.APPLICATION_OCTET_STREAM).content(tooLarge))
+                .andExpect(status().`is`(413))
+        }
     }
 
     @Test
