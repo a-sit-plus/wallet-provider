@@ -18,3 +18,8 @@ captures
 !*.xcworkspace/contents.xcworkspacedata
 **/xcshareddata/WorkspaceSettings.xcsettings
 /metrics
+application-secrets.yaml
+/server/data
+/data
+/vault
+.env

@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en" th:fragment="page(content)" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <meta content="width=device-width, initial-scale=1" name="viewport">
+    <title>Wallet Provider</title>
+
+    <link rel="stylesheet" th:href="@{/webjars/bootstrap/css/bootstrap.min.css}">
+    <link rel="stylesheet" th:href="@{/css/provider.css}">
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+    <div class="container-fluid">
+        <a class="navbar-brand" th:href="@{/}">Wallet Provider</a>
+
+        <button aria-controls="mainNav" aria-expanded="false" aria-label="Toggle navigation" class="navbar-toggler"
+                data-bs-target="#mainNav" data-bs-toggle="collapse" type="button">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="mainNav">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item">
+                    <a class="nav-link" th:href="@{/}">Overview</a>
+                </li>
+                <li class="nav-item" th:if="${adminLoggedIn == true}">
+                    <a class="nav-link" th:href="@{/admin/key-storage-status}">Revocation Status</a>
+                </li>
+            </ul>
+
+            <ul class="navbar-nav">
+                <!-- Logout is a POST with CSRF token, so another site cannot log the admin out. -->
+                <li class="nav-item" th:if="${adminLoggedIn == true}">
+                    <form method="post" th:action="@{/admin/logout}">
+                        <button class="btn btn-link nav-link" type="submit">Admin Logout</button>
+                    </form>
+                </li>
+                <li class="nav-item" th:unless="${adminLoggedIn == true}">
+                    <a class="nav-link" th:href="@{/admin/login}">Admin Login</a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<div class="container pb-5">
+    <div class="flash-stack mb-3" th:if="${flashMessages != null and not #lists.isEmpty(flashMessages)}">
+        <div role="alert"
+             th:class="'alert alert-' + (${msg.category} == 'error' ? 'danger' : ${msg.category}) + ' alert-dismissible fade show shadow-sm'"
+             th:each="msg : ${flashMessages}">
+            <span th:text="${msg.text}"></span>
+            <button aria-label="Close" class="btn-close" data-bs-dismiss="alert" type="button"></button>
+        </div>
+    </div>
+    <div th:replace="${content}"></div>
+</div>
+
+<script th:src="@{/webjars/bootstrap/js/bootstrap.bundle.min.js}"></script>
+<script th:src="@{/js/provider.js}"></script>
+
+</body>
+</html>

@@ -1,0 +1,16 @@
+services:
+  provider:
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./vault:/vault:ro
+    environment:
+      - SPRING_CLOUD_CONFIG_ENABLED=false
+      - PROVIDER_PUBLICCONTEXT=http://localhost:8080
+      - KEYSTORE_FILE=/vault/keystore.p12
+      - KEYSTORE_ALIAS=CHANGEME
+      - KEYSTORE_SECRET=CHANGEME
+      - ADMIN_PASSWORD=CHANGEME

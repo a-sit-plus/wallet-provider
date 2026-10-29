@@ -1,38 +1,35 @@
 [versions]
-kotlin = "2.4.20"
-kotlin-html = "0.12.0"
-ktor = "3.4.3"
-logback = "1.5.32"
-warden-supreme = "1.0.5"
-vck = "7.0.1"
-signum = "3.24.0"
-exposed = "1.2.0"
-h2 = "2.4.240"
-pgsql = "42.7.7"
-json = "1.11.0"
+kotlin = "2.4.21"
+spring-boot = "4.2.0-RC1"
+spring-cloud = "2026.0.0-RC1"
+warden-supreme = "1.2.0"
+vck = "9.0.0-RC2"
+signum = "3.26.0"
+json = "1.12.0"
 napier = "2.7.1"
+webjars-locator = "1.1.5"
+webjars-bootstrap = "5.3.8"
 
 [libraries]
 kotlin-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "json" }
-kotlin-html = { module = "org.jetbrains.kotlinx:kotlinx-html-jvm", version.ref = "kotlin-html" }
+kotlin-reflect = { module = "org.jetbrains.kotlin:kotlin-reflect", version.ref = "kotlin" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
-logback = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
-ktor-serverCore = { module = "io.ktor:ktor-server-core-jvm", version.ref = "ktor" }
-ktor-serverNetty = { module = "io.ktor:ktor-server-netty-jvm", version.ref = "ktor" }
-ktor-serverTestHost = { module = "io.ktor:ktor-server-test-host-jvm", version.ref = "ktor" }
-ktor-html = { module = "io.ktor:ktor-server-html-builder-jvm", version.ref = "ktor" }
-ktor-yaml = { module = "io.ktor:ktor-server-config-yaml", version.ref = "ktor" }
+spring-cloud-dependencies = { module = "org.springframework.cloud:spring-cloud-dependencies", version.ref = "spring-cloud" }
+spring-cloud-starter-config = { module = "org.springframework.cloud:spring-cloud-starter-config" }
+webjars-locator = { module = "org.webjars:webjars-locator-lite", version.ref = "webjars-locator" }
+webjars-bootstrap = { module = "org.webjars:bootstrap", version.ref = "webjars-bootstrap" }
 warden-supreme = { module = "at.asitplus.warden:supreme-verifier", version.ref = "warden-supreme" }
+warden-config-spring = { module = "at.asitplus.warden:config-spring", version.ref = "warden-supreme" }
 vck = { group = "at.asitplus.wallet", name = "vck", version.ref = "vck" }
 vck-openid = { group = "at.asitplus.wallet", name = "vck-openid", version.ref = "vck" }
 signum = { group = "at.asitplus.signum", name = "indispensable", version.ref = "signum" }
-exposed-core = { module = "org.jetbrains.exposed:exposed-core", version.ref = "exposed" }
-exposed-jdbc = { module = "org.jetbrains.exposed:exposed-jdbc", version.ref = "exposed" }
-h2 = { module = "com.h2database:h2", version.ref = "h2" }
-postgresql = { module = "org.postgresql:postgresql", version.ref = "pgsql" }
+# Versions of H2 and PostgreSQL are managed by the Spring Boot BOM
+h2 = { module = "com.h2database:h2" }
+postgresql = { module = "org.postgresql:postgresql" }
 napier = { module = "io.github.aakira:napier", version.ref = "napier" }
 
 [plugins]
 kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
-ktor = { id = "io.ktor.plugin", version.ref = "ktor" }
+kotlinSpring = { id = "org.jetbrains.kotlin.plugin.spring", version.ref = "kotlin" }
 serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+springBoot = { id = "org.springframework.boot", version.ref = "spring-boot" }

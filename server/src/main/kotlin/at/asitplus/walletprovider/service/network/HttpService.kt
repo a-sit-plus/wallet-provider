@@ -8,15 +8,12 @@ import at.asitplus.wallet.lib.data.rfc.tokenStatusList.RevocationList
 import at.asitplus.wallet.lib.data.rfc.tokenStatusList.primitives.TokenStatus
 import at.asitplus.walletprovider.data.ConfigData
 import at.asitplus.walletprovider.data.KeyAttestationRequest
-import at.asitplus.walletprovider.data.template.RootPageTemplate
-import at.asitplus.walletprovider.data.template.StatusFormTemplate
 import at.asitplus.walletprovider.service.crypto.AttestationService
 import at.asitplus.walletprovider.service.storage.ClientTokenStoreService
 import at.asitplus.walletprovider.service.storage.KeyStorageTokenStoreService
+import at.asitplus.walletprovider.service.storage.TokenStoreService
 import at.asitplus.walletprovider.service.storage.getMap
 import io.github.aakira.napier.Napier
-import io.ktor.http.*
-import io.ktor.util.*
 import kotlinx.serialization.json.Json
 
 class HttpService(
@@ -25,64 +22,42 @@ class HttpService(
     val keyStorageTokenStoreService: KeyStorageTokenStoreService,
     val attestationService: AttestationService,
 ) {
-    fun handleRootPageRequest() = catchingUnwrapped {
-        RootPageTemplate(
-            endpointKeyStorageStatus = configData.endpoint.viewKeyStorageStatus,
-            endpointClientStatus = configData.endpoint.viewClientStatus
+    suspend fun handleKeyStorageStatusRequest(period: Int) = catchingUnwrapped {
+        keyStorageTokenStoreService.statusListAgent.issueStatusListJwt(
+            kind = RevocationList.Kind.STATUS_LIST,
+            timePeriod = period
         )
     }
 
-    suspend fun handleKeyStorageStatusRequest(params: Parameters) = catchingUnwrapped {
-        params.parsePeriod().let {
-            keyStorageTokenStoreService.statusListAgent.issueStatusListJwt(
-                kind = RevocationList.Kind.STATUS_LIST,
-                timePeriod = it
-            )
-        }
-    }
-
-    suspend fun handleClientStatusRequest(params: Parameters) = catchingUnwrapped {
-        params.parsePeriod().let {
-            clientTokenStoreService.statusListAgent.issueStatusListJwt(
-                kind = RevocationList.Kind.STATUS_LIST,
-                timePeriod = it
-            )
-        }
-    }
-
-    fun handleViewKeyStorageStatusRequest() = catchingUnwrapped {
-        StatusFormTemplate(
-            endpoint = configData.endpoint.updateKeyStorageStatus,
-            data = keyStorageTokenStoreService.tokenStore.getStatusListView(configData.status.fixedTimePeriod)
-                .getMap()
+    suspend fun handleClientStatusRequest(period: Int) = catchingUnwrapped {
+        clientTokenStoreService.statusListAgent.issueStatusListJwt(
+            kind = RevocationList.Kind.STATUS_LIST,
+            timePeriod = period
         )
     }
 
-    fun handleUpdateKeyStorageStatusRequest(params: Parameters) = catchingUnwrapped {
-        params.flattenEntries().forEach {
-            keyStorageTokenStoreService.tokenStore.setStatus(
-                configData.status.fixedTimePeriod,
-                it.first.toULong(),
-                TokenStatus(it.second.toUInt())
-            )
+    /** Status values of all key attestations of the current time period, by status list index */
+    fun keyStorageStatuses(): Map<UInt, Int> = keyStorageTokenStoreService.issuedStatuses()
+
+    /** Status values of all instance attestations of the current time period, by status list index */
+    fun clientStatuses(): Map<UInt, Int> = clientTokenStoreService.issuedStatuses()
+
+    /** Statuses of the indices handed out so far, without the padding of the last byte of the status list */
+    private fun TokenStoreService.issuedStatuses(): Map<UInt, Int> {
+        val period = configData.status.fixedTimePeriod
+        val issued = tokenStore.exportData()[period]?.first ?: 0
+        return tokenStore.getStatusListView(period).getMap().filterKeys { it < issued.toUInt() }
+    }
+
+    fun updateKeyStorageStatuses(statuses: Map<ULong, UInt>) = catchingUnwrapped {
+        statuses.forEach { (index, status) ->
+            keyStorageTokenStoreService.tokenStore.setStatus(configData.status.fixedTimePeriod, index, TokenStatus(status))
         }
     }
 
-    fun handleViewClientStatusRequest() = catchingUnwrapped {
-        StatusFormTemplate(
-            endpoint = configData.endpoint.updateClientStatus,
-            data = clientTokenStoreService.tokenStore.getStatusListView(configData.status.fixedTimePeriod)
-                .getMap()
-        )
-    }
-
-    fun handleUpdateClientStatusRequest(params: Parameters) = catchingUnwrapped {
-        params.flattenEntries().forEach {
-            clientTokenStoreService.tokenStore.setStatus(
-                configData.status.fixedTimePeriod,
-                it.first.toULong(),
-                TokenStatus(it.second.toUInt())
-            )
+    fun updateClientStatuses(statuses: Map<ULong, UInt>) = catchingUnwrapped {
+        statuses.forEach { (index, status) ->
+            clientTokenStoreService.tokenStore.setStatus(configData.status.fixedTimePeriod, index, TokenStatus(status))
         }
     }
 
@@ -128,7 +103,4 @@ class HttpService(
                 )
             }.getOrThrow()
     }
-
-    private fun Parameters.parsePeriod(): Int = (this["period"] ?: throw Throwable("No period in URL")).toInt()
-
 }

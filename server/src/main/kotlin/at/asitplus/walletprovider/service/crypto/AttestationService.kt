@@ -1,10 +1,13 @@
 package at.asitplus.walletprovider.service.crypto
 
+import at.asitplus.attestation.supreme.AttestationProof
 import at.asitplus.attestation.supreme.AttestationResponse
 import at.asitplus.attestation.supreme.AttestationVerifier
+import at.asitplus.attestation.supreme.SupremeConfiguration
 import at.asitplus.catching
 import at.asitplus.catchingUnwrapped
 import at.asitplus.openid.OpenIdConstants
+import at.asitplus.openid.truncateToSeconds
 import at.asitplus.signum.indispensable.asn1.Asn1Primitive
 import at.asitplus.signum.indispensable.josef.*
 import at.asitplus.signum.indispensable.josef.io.joseCompliantSerializer
@@ -35,6 +38,7 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.ExperimentalTime
+import kotlin.time.toKotlinDuration
 
 interface AttestationService {
     val configData: ConfigData
@@ -65,7 +69,9 @@ interface AttestationService {
                     return@catchingUnwrapped BuildClientAttestationJwt(
                         SignJwt(keyMaterial, JwsHeaderCertOrJwk()),
                         clientId = configData.provider.clientId,
-                        lifetime = configData.attestation.instanceAttestation.lifetime,
+                        lifetime = configData.attestation.instanceAttestation.lifetime.toKotlinDuration(),
+                        // VC-K no longer applies a clock skew itself; keep the 3 minutes of earlier versions
+                        issuedAt = now().truncateToSeconds() - 3.minutes,
                         clientKey = clientKey,
                         walletName = configData.provider.solutionId,
                         walletVersion = walletSolutionVersion,
@@ -79,7 +85,7 @@ interface AttestationService {
                                     )
                                 )
                             ),
-                            expiration = now() + configData.attestation.instanceAttestation.maintenance,
+                            expiration = now() + configData.attestation.instanceAttestation.maintenance.toKotlinDuration(),
                         )
                     )
                 }
@@ -111,7 +117,7 @@ interface AttestationService {
             true -> {
                 return@catchingUnwrapped BuildKeyAttestationJwt(
                     SignJwt(keyMaterial, JwsHeaderCertOrJwk()),
-                    lifetime = configData.attestation.keyAttestation.lifetime,
+                    lifetime = configData.attestation.keyAttestation.lifetime.toKotlinDuration(),
                     attestedKeys = request.keys,
                     keyStorage = request.keyStorage,
                     userAuthentication = request.userAuthentication,
@@ -125,7 +131,7 @@ interface AttestationService {
                                 )
                             )
                         ),
-                        expiration = now() + configData.attestation.keyAttestation.maintenance,
+                        expiration = now() + configData.attestation.keyAttestation.maintenance.toKotlinDuration(),
                     ),
                 )
             }
@@ -180,18 +186,19 @@ interface AttestationService {
 
 class RealAttestationService(
     override val configData: ConfigData,
-    override val keyMaterial: KeyMaterial
+    override val keyMaterial: KeyMaterial,
+    supremeConfiguration: SupremeConfiguration,
 ) : AttestationService {
     override val nonceService = DefaultNonceService()
 
     val attestationValidator = AttestationVerifier(
-        configuration = configData.attestation.supremeConfiguration
+        configuration = supremeConfiguration
     )
 
     @OptIn(ExperimentalTime::class)
     override suspend fun verifyKeyAttestedKeys(csr: Pkcs10CertificationRequest): AttestationResponse =
         attestationValidator.verifyAttestation(
-            csr = csr,
+            attestationProof = AttestationProof.Signed(csr),
             onPreAttestationError = {
                 "onPreAttestationError: type: ${this.javaClass.simpleName}, errorId: ${createErrorId()}}".let {
                     Napier.w("$it, message: ${this.throwable}, $csr")
