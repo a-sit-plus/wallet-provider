@@ -78,7 +78,7 @@ class ApplicationTest : ProviderTestSupport() {
                 signatureAlgorithm = X509SignatureAlgorithm.RS256,
                 rawSignature = "".encodeToAsn1Primitive()
             ),
-            idx = 0
+            nextIndex = { 0 }
         ).getOrThrow()
 
         assertEquals(
@@ -115,7 +115,7 @@ class ApplicationTest : ProviderTestSupport() {
 
         )
 
-        val keyAttestation = attestationService.buildKeyAttestation(keyAttestationRequest, 0).getOrThrow()
+        val keyAttestation = attestationService.buildKeyAttestation(keyAttestationRequest) { 0 }.getOrThrow()
         assertEquals(
             VerifyJwsSignature().invoke(keyAttestation.jws, attestationService.keyMaterial.publicKey).isSuccess,
             true

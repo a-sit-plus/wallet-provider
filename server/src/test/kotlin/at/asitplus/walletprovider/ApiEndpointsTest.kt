@@ -23,6 +23,7 @@ import at.asitplus.wallet.lib.jws.SignJwt
 import at.asitplus.walletprovider.data.InstanceAttestationRequest
 import at.asitplus.walletprovider.data.KeyAttestationRequest
 import at.asitplus.walletprovider.service.network.HttpService
+import at.asitplus.walletprovider.service.storage.TokenStoreService
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
@@ -66,6 +67,9 @@ class ApiEndpointsTest : ProviderTestSupport() {
         signatureAlgorithm = X509SignatureAlgorithm.RS256,
         rawSignature = "".encodeToAsn1Primitive()
     )
+
+    /** How many status list indices [service] has handed out */
+    private fun issuedIndices(service: TokenStoreService) = service.tokenStore.exportData()[period]?.first ?: 0
 
     /** The status list index of a `status` claim, i.e. `{"status_list": {"idx": …, "uri": …}}` */
     private fun JsonObject.statusListIndex(): Long =
@@ -142,14 +146,18 @@ class ApiEndpointsTest : ProviderTestSupport() {
         val index = assertNotNull(keyAttestation.payload.keyStorageStatus).status.statusListIndex()
         assertEquals(0, httpService.keyStorageStatuses()[index.toUInt()])
 
-        // The nonce of the proof has been used up
+        // The nonce of the proof has been used up; the rejected request does not use up an index
+        val issued = issuedIndices(httpService.keyStorageTokenStoreService)
         mockMvc.perform(
             post(configData.endpoint.keyAttestation).contentType(MediaType.APPLICATION_JSON).content(request)
         ).andExpect(status().isBadRequest)
+        assertEquals(issued, issuedIndices(httpService.keyStorageTokenStoreService))
     }
 
     @Test
     fun `malformed requests are refused`() {
+        val issuedClient = issuedIndices(httpService.clientTokenStoreService)
+        val issuedKeyStorage = issuedIndices(httpService.keyStorageTokenStoreService)
         mockMvc.perform(
             post(configData.endpoint.instanceAttestation)
                 .contentType(MediaType.APPLICATION_OCTET_STREAM)
@@ -157,6 +165,10 @@ class ApiEndpointsTest : ProviderTestSupport() {
         ).andExpect(status().isBadRequest)
         mockMvc.perform(post(configData.endpoint.keyAttestation).contentType(MediaType.APPLICATION_JSON).content("{}"))
             .andExpect(status().isBadRequest)
+
+        // Rejected requests do not use up status list indices
+        assertEquals(issuedClient, issuedIndices(httpService.clientTokenStoreService))
+        assertEquals(issuedKeyStorage, issuedIndices(httpService.keyStorageTokenStoreService))
     }
 
     @Test

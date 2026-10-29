@@ -76,31 +76,22 @@ class HttpService(
 
     suspend fun handleInstanceRequest(request: ByteArray) = catchingUnwrapped {
         Napier.i("Start Instance Attestation", tag = "HttpService")
-        val idx = clientTokenStoreService.tokenStore.getNextFreeIndex(configData.status.fixedTimePeriod)
-        Pkcs10CertificationRequest.decodeFromDer(request).let { csr ->
-            attestationService.buildInstanceAttestation(csr, idx).onSuccess {
-                clientTokenStoreService.tokenStore.setStatus(
-                    configData.status.fixedTimePeriod,
-                    idx.toULong(),
-                    TokenStatus.Valid
-                )
-            }.getOrThrow()
-        }
+        val csr = Pkcs10CertificationRequest.decodeFromDer(request)
+        attestationService.buildInstanceAttestation(csr) { clientTokenStoreService.issueIndex() }.getOrThrow()
     }
 
     suspend fun handleKeyAttestationRequest(request: String) = catchingUnwrapped {
         Napier.i("Start KeyAttestation", tag = "HttpService")
-        val idx = keyStorageTokenStoreService.tokenStore.getNextFreeIndex(configData.status.fixedTimePeriod)
-        attestationService.buildKeyAttestation(
-            joseCompliantSerializer.decodeFromString<KeyAttestationRequest>(request),
-            idx
-        )
-            .onSuccess {
-                keyStorageTokenStoreService.tokenStore.setStatus(
-                    configData.status.fixedTimePeriod,
-                    idx.toULong(),
-                    TokenStatus.Valid
-                )
-            }.getOrThrow()
+        val keyAttestationRequest = joseCompliantSerializer.decodeFromString<KeyAttestationRequest>(request)
+        attestationService.buildKeyAttestation(keyAttestationRequest) { keyStorageTokenStoreService.issueIndex() }
+            .getOrThrow()
+    }
+
+    /**
+     * Hands out the next status list index, with status valid; only for attestations that passed verification, so a
+     * rejected request does not use up an index.
+     */
+    private fun TokenStoreService.issueIndex(): Int = configData.status.fixedTimePeriod.let { period ->
+        tokenStore.getNextFreeIndex(period).also { tokenStore.setStatus(period, it.toULong(), TokenStatus.Valid) }
     }
 }

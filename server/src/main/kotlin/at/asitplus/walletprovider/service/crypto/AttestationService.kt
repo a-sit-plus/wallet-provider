@@ -49,7 +49,11 @@ interface AttestationService {
         csr: Pkcs10CertificationRequest
     ): AttestationResponse
 
-    suspend fun buildInstanceAttestation(csr: Pkcs10CertificationRequest, idx: Int) = catchingUnwrapped {
+    /**
+     * Verifies the key attestation in [csr] and issues the Wallet Instance Attestation; [nextIndex] hands out its status
+     * list index and is only called once the verification has succeeded.
+     */
+    suspend fun buildInstanceAttestation(csr: Pkcs10CertificationRequest, nextIndex: () -> Int) = catchingUnwrapped {
         val csrData = (csr.tbsCsr.attributes.firstOrNull {
             it.oid.toString() == configData.provider.solutionOid
         }?.value)
@@ -78,7 +82,7 @@ interface AttestationService {
                         walletSolutionCertificationInformation = configData.provider.solutionCertificationInfo,
                         clientStatus = ClientStatus(
                             status = statusListReference(
-                                idx = idx, configData.buildEndpointString(
+                                idx = nextIndex(), configData.buildEndpointString(
                                     listOf(
                                         configData.endpoint.clientStatus,
                                         FixedTimePeriodProvider.timePeriod.toString()
@@ -107,7 +111,11 @@ interface AttestationService {
             return@catchingUnwrapped (instanceAttestationValid && proofValid && nonceValid)
         }
 
-    suspend fun buildKeyAttestation(request: KeyAttestationRequest, idx: Int) = catchingUnwrapped {
+    /**
+     * Verifies the instance attestation and its proof in [request] and issues the Key Attestation; [nextIndex] hands out
+     * its status list index and is only called once the verification has succeeded.
+     */
+    suspend fun buildKeyAttestation(request: KeyAttestationRequest, nextIndex: () -> Int) = catchingUnwrapped {
         val token = catching { JwsCompactTyped<JsonWebToken>(request.token) }.getOrThrow()
 
         val proof = catching { JwsCompactTyped<JsonWebToken>(request.proof) }.getOrThrow()
@@ -124,7 +132,7 @@ interface AttestationService {
                     certification = configData.provider.storageCertificationInfo,
                     keyStorageStatus = KeyStorageStatus(
                         status = statusListReference(
-                            idx, configData.buildEndpointString(
+                            nextIndex(), configData.buildEndpointString(
                                 listOf(
                                     configData.endpoint.keyStorageStatus,
                                     FixedTimePeriodProvider.timePeriod.toString()
