@@ -2,15 +2,10 @@ package at.asitplus.walletprovider
 
 import at.asitplus.wallet.lib.data.rfc.tokenStatusList.StatusListView
 import at.asitplus.wallet.lib.data.rfc.tokenStatusList.primitives.TokenStatus
-import at.asitplus.walletprovider.config.LegacyDatabaseConfigCheck
 import at.asitplus.walletprovider.service.storage.DatabaseService
 import at.asitplus.walletprovider.service.storage.InMemoryTokenStore
 import org.flywaydb.core.Flyway
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
-import org.springframework.boot.SpringApplication
-import org.springframework.core.env.MapPropertySource
-import org.springframework.core.env.StandardEnvironment
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.jdbc.datasource.DataSourceTransactionManager
 import org.springframework.jdbc.datasource.DriverManagerDataSource
@@ -109,26 +104,5 @@ class LegacyMigrationTest {
         }
         databaseService().saveKeyStorageStatusLists(store.exportData()).getOrThrow()
         assertEquals(store.exportData(), databaseService().loadKeyStorageStatusLists().getOrThrow())
-    }
-}
-
-class LegacyDatabaseConfigCheckTest {
-
-    private fun check(properties: Map<String, Any>) = LegacyDatabaseConfigCheck().postProcessEnvironment(
-        StandardEnvironment().apply { propertySources.addFirst(MapPropertySource("test", properties)) },
-        SpringApplication(),
-    )
-
-    @Test
-    fun `startup stops with the database settings of the earlier version`() {
-        val error = assertThrows<IllegalStateException> {
-            check(mapOf("database.url" to "jdbc:postgresql://db/provider", "database.driver" to "org.postgresql.Driver"))
-        }
-        assertTrue(error.message!!.contains("spring.datasource.url"))
-    }
-
-    @Test
-    fun `startup continues with the current database settings`() {
-        check(mapOf("spring.datasource.url" to "jdbc:postgresql://db/provider", "database.exportInterval" to "PT1M"))
     }
 }

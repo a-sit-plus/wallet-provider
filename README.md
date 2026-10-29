@@ -83,7 +83,8 @@ indices are kept; the old tables are left unchanged. Before upgrading, move the 
 | `database.driver` | not needed, the driver is inferred from the URL                              |
 | user and password | `spring.datasource.username` and `spring.datasource.password` (or in the URL); none for the H2 file, as before |
 
-The provider does not start while `database.url` or `database.driver` is still configured.
+The provider ignores `database.url` and `database.driver`: without `spring.datasource.url` it would start on its default
+database, without the status lists of the Ktor version.
 
 The `supreme` section is loaded with Warden Supreme's Spring Boot binding (`config-spring`), like any other Spring
 configuration: single values of a source with higher precedence (e.g. the config server) override those of

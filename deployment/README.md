@@ -89,8 +89,8 @@ new attestations reuse the indices of earlier ones.
 
 On the first start against the database of the Ktor version, migration V2 copies its status lists (tables
 `key_storage_status` and `client_status_lists` of the default schema) into the schema `wallet_provider`; the old tables
-are left unchanged. Move `database.url` to `spring.datasource.url` and remove `database.driver` before: the provider does
-not start while they are still configured. Check the startup log for the migrations `1 - create status lists` and
+are left unchanged. Move `database.url` to `spring.datasource.url` and remove `database.driver` before: the provider ignores
+them and would otherwise start on its default database, without the old status lists. Check the startup log for the migrations `1 - create status lists` and
 `2 - Import legacy status lists`.
 
 ## 5. Public endpoints

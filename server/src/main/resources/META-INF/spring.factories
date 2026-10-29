@@ -1,2 +1,0 @@
-org.springframework.boot.EnvironmentPostProcessor=\
-at.asitplus.walletprovider.config.LegacyDatabaseConfigCheck
