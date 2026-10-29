@@ -1,0 +1,42 @@
+/* Provider UI styles; kept out of the pages for the Content-Security-Policy (style-src 'self'). */
+body {
+    padding-top: 4.5rem;
+}
+
+pre {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 5px;
+}
+
+th.sortable-header {
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+}
+
+th.sortable-header::after {
+    content: " \2195";
+    opacity: 0.45;
+    font-size: 0.85em;
+}
+
+th.sortable-header.sort-asc::after {
+    content: " \2191";
+    opacity: 1;
+}
+
+th.sortable-header.sort-desc::after {
+    content: " \2193";
+    opacity: 1;
+}
+
+.flash-stack {
+    position: sticky;
+    top: 4.75rem;
+    z-index: 1030;
+}
+
+select.status-select {
+    max-width: 14rem;
+}

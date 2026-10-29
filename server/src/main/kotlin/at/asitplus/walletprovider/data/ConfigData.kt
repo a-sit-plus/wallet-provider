@@ -1,157 +1,89 @@
 package at.asitplus.walletprovider.data
 
-import at.asitplus.attestation.supreme.SupremeConfiguration
-import at.asitplus.catching
-import io.ktor.http.*
-import io.ktor.server.config.*
-import net.mamoe.yamlkt.Yaml
-import net.mamoe.yamlkt.toYamlElement
-import kotlin.time.Duration
+import at.asitplus.wallet.lib.agent.FixedTimePeriodProvider
+import org.springframework.boot.context.properties.ConfigurationProperties
+import org.springframework.stereotype.Component
+import org.springframework.web.util.UriComponentsBuilder
+import java.time.Duration
 
-data class ConfigData(
-    val config: ApplicationConfig
+/**
+ * All settings of the wallet provider, bound from `application.yaml` (or the Spring Cloud Config server).
+ * The `supreme` section is loaded by Warden Supreme, see [at.asitplus.walletprovider.config.ProviderBeans.supremeConfiguration].
+ */
+@Component
+class ConfigData(
+    val database: DatabaseConfigData,
+    val keystore: KeyStoreConfigData,
+    val provider: ProviderConfigData,
+    val endpoint: EndpointConfigData,
+    val attestation: AttestationConfigData,
+    val admin: AdminConfigData,
 ) {
-    val ktor = KtorConfigData(config)
-    val database = DatabaseConfigData(config)
-    val keystore by lazy { KeyStoreConfigData(config) }
-    val provider = ProviderConfigData(config)
-    val endpoint = EndpointConfigData(config)
-    val attestation = AttestationConfigData(config)
-    val status = StatusListConfigData(config)
+    val status = StatusListConfigData()
 
+    /** [ProviderConfigData.publicContext] with [paths] appended, e.g. `https://provider.example/api/v1/clientStatus/1` */
     val buildEndpointString: (List<String>) -> String = { paths ->
-        URLBuilder(Url.invoke(provider.publicContext))
-            .appendPathSegments(paths)
-            .buildString()
+        UriComponentsBuilder.fromUriString(provider.publicContext)
+            .pathSegment(*paths.flatMap { it.split('/') }.filter { it.isNotEmpty() }.toTypedArray())
+            .build()
+            .toUriString()
     }
 }
 
-data class KtorConfigData(
-    val config: ApplicationConfig
-) {
-    val deployment = Deployment(
-        port = config.propertyOrNull("ktor.deployment.port")?.getString()
-            ?: throw Throwable("ktor.deployment.port is missing from config"),
-        host = config.propertyOrNull("ktor.deployment.host")?.getString()
-            ?: throw Throwable("ktor.deployment.host is missing from config")
-    )
-
-    data class Deployment(
-        val port: String,
-        val host: String
-    )
-}
-
+@ConfigurationProperties("provider")
 data class ProviderConfigData(
-    val config: ApplicationConfig
+    val publicContext: String,
+    val clientId: String,
+    val issuer: String,
+    val solutionId: String,
+    val solutionOid: String,
 ) {
-    val publicContext = config.propertyOrNull("provider.publicContext")?.getString()
-        ?: throw Throwable("provider.publicContext is missing from config")
-    val clientId = config.propertyOrNull("provider.clientId")?.getString()
-        ?: throw Throwable("provider.clientId is missing from config")
-    val issuer = config.propertyOrNull("provider.issuer")?.getString()
-        ?: throw Throwable("provider.issuer is missing from config")
-    val solutionId = config.propertyOrNull("provider.solutionId")?.getString()
-        ?: throw Throwable("provider.solutionId is missing from config")
-    val solutionOid = config.propertyOrNull("provider.solutionOid")?.getString()
-        ?: throw Throwable("provider.solutionOid is missing from config")
     val solutionCertificationInfo = issuer
     val storageCertificationInfo = issuer
 }
 
+@ConfigurationProperties("endpoints")
 data class EndpointConfigData(
-    val config: ApplicationConfig
-) {
-    val challenge = config.propertyOrNull("endpoints.challenge")?.getString()
-        ?: throw Throwable("endpoints.challenge is missing from config")
-    val instanceAttestation = config.propertyOrNull("endpoints.instanceAttestation")?.getString()
-        ?: throw Throwable("endpoints.instanceAttestation is missing from config")
-    val keyAttestation =
-        config.propertyOrNull("endpoints.keyAttestation")?.getString()
-            ?: throw Throwable("endpoints.keyAttestation is missing from config")
-    val clientStatus = config.propertyOrNull("endpoints.clientStatus")?.getString()
-        ?: throw Throwable("endpoints.clientStatus is missing from config")
+    val challenge: String,
+    val instanceAttestation: String,
+    val keyAttestation: String,
+    val clientStatus: String,
+    val keyStorageStatus: String,
+    val nonce: String,
+)
 
-    val keyStorageStatus = config.propertyOrNull("endpoints.keyStorageStatus")?.getString()
-        ?: throw Throwable("endpoints.keyStorageStatus is missing from config")
-    val nonce = config.propertyOrNull("endpoints.nonce")?.getString()
-        ?: throw Throwable("endpoints.nonce is missing from config")
-    val updateKeyStorageStatus = config.propertyOrNull("endpoints.updateKeyStorageStatus")?.getString()
-        ?: throw Throwable("endpoints.updateKeyStorageStatus is missing from config")
-    val updateClientStatus = config.propertyOrNull("endpoints.updateClientStatus")?.getString()
-        ?: throw Throwable("endpoints.updateClientStatus is missing from config")
-    val viewKeyStorageStatus =
-        config.propertyOrNull("endpoints.viewKeyStorageStatus")?.getString()
-            ?: throw Throwable("endpoints.viewKeyStorageStatus is missing from config")
-    val viewClientStatus =
-        config.propertyOrNull("endpoints.viewClientStatus")?.getString()
-            ?: throw Throwable("endpoints.viewClientStatus is missing from config")
-}
-
+@ConfigurationProperties("attestation")
 data class AttestationConfigData(
-    val config: ApplicationConfig
+    val keyAttestation: AttestationDurations,
+    val instanceAttestation: AttestationDurations,
 ) {
-    val keyAttestation = AttestationDurations(
-        maintenance = config.propertyOrNull("attestation.keyAttestation.maintenance")?.getString()
-            ?.let { Duration.parseIsoString(it) }
-            ?: throw Throwable("attestation.keyAttestation.maintenance is missing from config"),
-        lifetime = config.propertyOrNull("attestation.keyAttestation.lifetime")?.getString()
-            ?.let { Duration.parseIsoString(it) }
-            ?: throw Throwable("attestation.keyAttestation.lifetime is missing from config")
-    )
-    val instanceAttestation = AttestationDurations(
-        maintenance = config.propertyOrNull("attestation.instanceAttestation.maintenance")?.getString()
-            ?.let { Duration.parseIsoString(it) }
-            ?: throw Throwable("attestation.instanceAttestation.maintenance is missing from config"),
-        lifetime = config.propertyOrNull("attestation.instanceAttestation.lifetime")?.getString()
-            ?.let { Duration.parseIsoString(it) }
-            ?: throw Throwable("attestation.instanceAttestation.lifetime is missing from config")
-    )
-
-    val supremeConfiguration = catching {
-        SupremeConfiguration.fromYamlString(
-            Yaml.encodeToString(
-                config.property("supreme").getMap().toYamlElement()
-            )
-        )
-    }.getOrElse {
-        throw Throwable("Unable to parse SupremeConfiguration from config", it)
-    }
-
     data class AttestationDurations(
         val maintenance: Duration,
-        val lifetime: Duration
+        val lifetime: Duration,
     )
 }
 
+/** How often the status lists are written to the database; the database itself is `spring.datasource`. */
+@ConfigurationProperties("database")
 data class DatabaseConfigData(
-    val config: ApplicationConfig
-) {
-    val url = config.propertyOrNull("database.url")?.getString()
-        ?: throw Throwable("database.url is missing from config")
-    val driver = config.propertyOrNull("database.driver")?.getString()
-        ?: throw Throwable("database.driver is missing from config")
+    val exportInterval: Duration,
+)
 
-    val exportInterval =
-        config.propertyOrNull("database.exportInterval")?.getString()?.let { Duration.parseIsoString(it) }
-            ?: throw Throwable("database.exportInterval is missing from config")
-}
-
+@ConfigurationProperties("keystore")
 data class KeyStoreConfigData(
-    val config: ApplicationConfig
-) {
-    val file: String = config.propertyOrNull("keystore.file")?.getString()
-        ?: throw Throwable("keystore.file is missing from config")
+    val file: String,
+    val alias: String,
+    val secret: String,
+)
 
-    val alias: String = config.propertyOrNull("keystore.alias")?.getString()
-        ?: throw Throwable("keystore.file is missing from config")
+/** The single operator account of the admin pages; with an empty [password] nobody can log in. */
+@ConfigurationProperties("admin")
+data class AdminConfigData(
+    val username: String = "admin",
+    val password: String = "",
+)
 
-    val secret: String = config.propertyOrNull("keystore.secret")?.getString()
-        ?: throw Throwable("keystore.file is missing from config")
-}
-
-data class StatusListConfigData(
-    val config: ApplicationConfig
-) {
-    val fixedTimePeriod = 1
+class StatusListConfigData {
+    /** The only time period: the attestations reference the status lists of [FixedTimePeriodProvider] */
+    val fixedTimePeriod = FixedTimePeriodProvider.timePeriod
 }

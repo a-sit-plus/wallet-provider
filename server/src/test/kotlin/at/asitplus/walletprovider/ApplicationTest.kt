@@ -4,7 +4,7 @@ import at.asitplus.signum.indispensable.X509SignatureAlgorithm
 import at.asitplus.signum.indispensable.asn1.ObjectIdentifier
 import at.asitplus.signum.indispensable.asn1.encoding.encodeToAsn1Primitive
 import at.asitplus.signum.indispensable.josef.JsonWebToken
-import at.asitplus.signum.indispensable.josef.JwsSigned
+import at.asitplus.signum.indispensable.josef.JwsCompactTyped
 import at.asitplus.signum.indispensable.josef.io.joseCompliantSerializer
 import at.asitplus.signum.indispensable.pki.Pkcs10CertificationRequest
 import at.asitplus.signum.indispensable.pki.Pkcs10CertificationRequestAttribute
@@ -18,79 +18,47 @@ import at.asitplus.wallet.lib.jws.JwsContentTypeConstants.CLIENT_ATTESTATION_POP
 import at.asitplus.wallet.lib.jws.JwsHeaderNone
 import at.asitplus.wallet.lib.jws.SignJwt
 import at.asitplus.wallet.lib.jws.VerifyJwsSignature
-import at.asitplus.walletprovider.data.ConfigData
 import at.asitplus.walletprovider.data.InstanceAttestationRequest
 import at.asitplus.walletprovider.data.KeyAttestationRequest
-import at.asitplus.walletprovider.injection.inject
-import at.asitplus.walletprovider.injection.injectDependencies
 import at.asitplus.walletprovider.service.crypto.AttestationService
-import io.ktor.client.request.*
-import io.ktor.client.statement.*
-import io.ktor.http.*
-import io.ktor.server.config.*
-import io.ktor.server.testing.*
-import kotlin.test.Test
+import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Test
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import kotlin.test.assertEquals
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.minutes
 
-class ApplicationTest {
-    val testConfig = ApplicationConfig("test.yaml")
-    val configData = ConfigData(testConfig)
+class ApplicationTest : ProviderTestSupport() {
 
-    init {
-        injectDependencies(testConfig)
+    @Autowired
+    lateinit var attestationService: AttestationService
+
+    @Test
+    fun `basic endpoint test`() {
+        mockMvc.perform(get("/")).andExpect(status().isOk)
+        mockMvc.perform(get(configData.endpoint.nonce)).andExpect(status().isOk)
+        mockMvc.perform(get(configData.endpoint.challenge)).andExpect(status().isOk)
     }
 
     @Test
-    fun `basic endpoint test`() = testApplication {
-        environment {
-            config = testConfig
-        }
-        application {
-            moduleServer()
-        }
-
-        assertEquals(HttpStatusCode.OK, client.get(configData.endpoint.viewClientStatus).status)
-        assertEquals(HttpStatusCode.OK, client.get(configData.endpoint.viewKeyStorageStatus).status)
-        assertEquals(HttpStatusCode.OK, client.get(configData.endpoint.nonce).status)
-        assertEquals(HttpStatusCode.OK, client.get(configData.endpoint.challenge).status)
-    }
-
-    @Test
-    fun `basic status list test`() = testApplication {
-        environment {
-            config = testConfig
-        }
-        application {
-            moduleServer()
-        }
-
-        client.get("${configData.endpoint.keyStorageStatus}/${configData.status.fixedTimePeriod}")
+    fun `basic status list test`() {
+        mockMvc.perform(get("${configData.endpoint.keyStorageStatus}/${configData.status.fixedTimePeriod}"))
+            .andExpect(status().isOk)
+            .andReturn().response
             .let {
-                assertEquals(HttpStatusCode.OK, it.status)
-                assertEquals(ContentType("application", "statuslist+jwt"), it.contentType()?.withoutParameters())
-                val token = JwsSigned.deserialize<StatusListTokenPayload>(
-                    it = it.bodyAsText(),
-                    deserializationStrategy = StatusListTokenPayload.serializer(),
-                ).getOrThrow()
+                assertEquals("application/statuslist+jwt", it.contentType)
+                val token = JwsCompactTyped<StatusListTokenPayload>(it.contentAsString)
                 val statusList = (token.payload.revocationList as StatusList)
                 assertEquals(TokenStatusBitSize.TWO, statusList.statusBitSize)
             }
     }
 
     @Test
-    fun `basic attestation flow`() = testApplication {
-        environment {
-            config = testConfig
-        }
-        application {
-            moduleServer()
-        }
-
+    fun `basic attestation flow`(): Unit = runBlocking {
         val instanceKey = EphemeralKeyWithoutCert()
-        val attestationService = inject<AttestationService>()
         val instanceAttestation = attestationService.buildInstanceAttestation(
             csr = Pkcs10CertificationRequest(
                 tbsCsr = TbsCertificationRequest(
@@ -110,7 +78,7 @@ class ApplicationTest {
                 signatureAlgorithm = X509SignatureAlgorithm.RS256,
                 rawSignature = "".encodeToAsn1Primitive()
             ),
-            idx = 0
+            nextIndex = { 0 }
         ).getOrThrow()
 
         assertEquals(
@@ -147,7 +115,7 @@ class ApplicationTest {
 
         )
 
-        val keyAttestation = attestationService.buildKeyAttestation(keyAttestationRequest, 0).getOrThrow()
+        val keyAttestation = attestationService.buildKeyAttestation(keyAttestationRequest) { 0 }.getOrThrow()
         assertEquals(
             VerifyJwsSignature().invoke(keyAttestation.jws, attestationService.keyMaterial.publicKey).isSuccess,
             true

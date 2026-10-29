@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html th:replace="~{layout/base :: page(~{::section})}" xmlns:th="http://www.thymeleaf.org">
+<body>
+<section>
+    <h2 class="mb-4">Admin Login</h2>
+
+    <div class="alert alert-danger" role="alert" th:if="${param.error != null}">Invalid credentials</div>
+
+    <form class="col-md-6" method="post" th:action="@{/admin/login}">
+        <div class="mb-3">
+            <label class="form-label" for="username">Username</label>
+            <input autocomplete="username" class="form-control" id="username" name="username" required>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label" for="password">Password</label>
+            <input autocomplete="current-password" class="form-control" id="password" name="password" required
+                   type="password">
+        </div>
+
+        <button class="btn btn-primary" type="submit">Login</button>
+    </form>
+</section>
+</body>
+</html>
