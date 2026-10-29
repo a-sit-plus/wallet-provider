@@ -106,6 +106,9 @@ The working directory is `server/`, so the keystore file and `application-secret
 Without `spring.datasource.url` the status lists are kept in an in-memory H2 database, so they are lost on restart.
 
 ### Docker
+For a deployment with a config server, a PostgreSQL database and the signing key in `/vault`, see
+[deployment/README.md](deployment/README.md), with a sample config server file and a script for the signing key.
+
 The image loads its configuration from a Spring Cloud Config server, i.e. the YAML file (as defined above) named
 `${SPRING_APPLICATION_NAME}-${SPRING_PROFILES_ACTIVE}.yaml` on branch `${SPRING_CLOUD_CONFIG_LABEL}`:
 
