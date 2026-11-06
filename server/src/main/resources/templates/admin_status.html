@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html th:replace="~{layout/base :: page(~{::section})}" xmlns:th="http://www.thymeleaf.org">
+<body>
+<section>
+    <h2 class="mb-4">Revocation Status</h2>
+
+    <ul class="nav nav-tabs mb-4">
+        <li class="nav-item">
+            <a class="nav-link" th:classappend="${view == 'key-storage'} ? 'active'"
+               th:href="@{/admin/key-storage-status}">Key Attestations</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" th:classappend="${view == 'client'} ? 'active'"
+               th:href="@{/admin/client-status}">Wallet Instance Attestations</a>
+        </li>
+    </ul>
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row g-3 align-items-center">
+                <div class="col-lg-5">
+                    <div class="text-muted small mb-1">Status list</div>
+                    <code class="text-break" th:text="${statusListUrl}"></code>
+                </div>
+                <div class="col-lg-7">
+                    <div class="row g-2">
+                        <div class="col-6 col-md-3">
+                            <div class="border rounded p-3 h-100">
+                                <div class="text-muted small">Issued</div>
+                                <div class="fs-4 fw-semibold" th:text="${#lists.size(rows)}"></div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3" th:each="option : ${options}"
+                             th:if="${option.name() != 'APPLICATION_SPECIFIC' or counts.get(option) > 0}">
+                            <div class="border rounded p-3 h-100">
+                                <div class="text-muted small" th:text="${option.label}"></div>
+                                <div class="fs-4 fw-semibold" th:text="${counts.get(option)}"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <h3 th:text="${title}"></h3>
+
+    <p class="text-muted" th:if="${#lists.isEmpty(rows)}">No attestations issued yet.</p>
+
+    <form method="post" th:action="@{${action}}"
+          th:unless="${#lists.isEmpty(rows)}"
+          data-confirm="Change the revocation status of the selected attestations?">
+        <table class="table table-bordered align-middle">
+            <thead class="table-dark">
+            <tr>
+                <th>Index</th>
+                <th>Status</th>
+                <th data-no-sort>New status</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="row : ${rows}">
+                <td th:text="${row.index}"></td>
+                <td><span th:class="'badge ' + ${row.status.badgeClass}" th:text="${row.status.label}"></span></td>
+                <td>
+                    <select class="form-select form-select-sm status-select" th:name="'status-' + ${row.index}"
+                            th:attr="aria-label='New status of index ' + ${row.index}">
+                        <option th:each="option : ${options}" th:selected="${option == row.status}"
+                                th:text="${option.label}" th:value="${option.value}"></option>
+                    </select>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+        <button class="btn btn-primary" type="submit">Save changes</button>
+    </form>
+</section>
+</body>
+</html>

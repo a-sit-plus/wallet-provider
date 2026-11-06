@@ -1,0 +1,41 @@
+# Configuration of the wallet provider for the Spring Cloud Config server, see deployment/README.md.
+# Settings not given here keep the defaults of server/src/main/resources/application.yaml.
+# Replace all placeholders before using it outside a local demo.
+
+spring:
+  datasource:
+    url: "jdbc:postgresql://replace-with-db-host:5432/wallet_provider"
+    username: wallet_provider
+    password: replace-with-db-password
+
+# Signing key of the attestations and status lists, created with deployment/prepare-vault.sh
+keystore:
+  file: /vault/keystore.p12
+  alias: wallet-provider
+  secret: replace-with-keystore-password
+
+# Login for the admin pages (revocation status); the password may also be given as hash, e.g. "{bcrypt}$2a$10$..."
+admin:
+  username: admin
+  password: replace-with-a-strong-admin-password
+
+provider:
+  # Public URL of the provider; the status list URIs in the issued attestations are built from it
+  publicContext: https://wallet-provider.example
+  # The wallet solution whose instances are attested (values of the A-SIT demo wallet)
+  clientId: "https://wallet.a-sit.plus/app"
+  issuer: "https://wallet.a-sit.plus"
+  solutionId: "Valera"
+  solutionOid: "2.25.210184084534939142470042512176304499012"
+
+attestation:
+  keyAttestation:
+    maintenance: "P60D"
+    lifetime: "PT12H"
+  instanceAttestation:
+    maintenance: "P60D"
+    lifetime: "PT12H"
+
+# The accepted apps and devices (Warden Supreme) are configured in the section `supreme` of application.yaml. Values
+# given here override single values there (e.g. `supreme.android.requireStrongBox: true`); a list, e.g. of the
+# applications, replaces the list there as a whole.

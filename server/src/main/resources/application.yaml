@@ -1,14 +1,42 @@
-ktor:
-  deployment:
-    port: 8000
-    host: "127.0.0.1"
+server:
+  port: 8000
+  address: "127.0.0.1"
+  forward-headers-strategy: framework
+  servlet:
+    session:
+      cookie:
+        # Defence in depth next to the CSRF tokens: browsers do not send the session cookie on cross-site POSTs.
+        same-site: lax
+        http-only: true
+
+spring:
   application:
-    modules:
-      - at.asitplus.walletprovider.ApplicationKt.module
+    name: wallet-provider
+  thymeleaf:
+    cache: true
+  # Settings from the Spring Cloud Config server (enable with SPRING_CLOUD_CONFIG_ENABLED=true and
+  # SPRING_CLOUD_CONFIG_URI), then local overrides from application-secrets.yaml, override the values in this file.
+  config:
+    import: "optional:configserver:,optional:file:./application-secrets.yaml"
+  cloud:
+    config:
+      enabled: false
+      label: main
+  # In-memory H2 database, lost on restart (and with it all revocations); set `spring.datasource.*` (url, username,
+  # password) for a persistent one, e.g. PostgreSQL. The driver is inferred from the URL (H2 and PostgreSQL drivers are
+  # bundled).
+  datasource:
+    url: "jdbc:h2:mem:wallet-provider;MODE=PostgreSQL;DB_CLOSE_DELAY=-1"
+    username: "sa"
+  flyway:
+    # The provider's schema; the database service and the migrations take it from here.
+    default-schema: wallet_provider
+    schemas: "${spring.flyway.default-schema}"
+    locations: classpath:db/walletprovider
+    table: flyway_schema_history_wallet_provider
 
 database:
-  url: "jdbc:h2:file:./data/statusdb;MODE=MYSQL;DB_CLOSE_DELAY=-1;"
-  driver: "org.h2.Driver"
+  # How often the status lists are written to the database
   exportInterval: "PT1M"
 
 keystore:
@@ -16,10 +44,16 @@ keystore:
   alias: "CHANGEME"
   secret: "CHANGEME"
 
+# Login for the admin pages (revocation status). Without a password the admin login is disabled; the password may
+# also be given as hash, e.g. "{bcrypt}$2a$10$...".
+admin:
+  username: "admin"
+  password: ""
+
 provider:
   publicContext: "https://wallet-provider.a-sit.plus"
-  clientId: "https://wallet.a-sit.at/app"
-  issuer: "https://wallet.a-sit.at"
+  clientId: "https://wallet.a-sit.plus/app"
+  issuer: "https://wallet.a-sit.plus"
   solutionId: "Valera"
   solutionOid: "2.25.210184084534939142470042512176304499012"
 
@@ -30,10 +64,7 @@ endpoints:
   clientStatus: "/api/v1/clientStatus"
   keyStorageStatus: "/api/v1/keyStorageStatus"
   nonce: "/api/v1/nonce"
-  updateKeyStorageStatus: "/update/keyStorageStatus"
-  updateClientStatus: "/update/clientStatus"
-  viewKeyStorageStatus: "/view/keyStorageStatus"
-  viewClientStatus: "/view/clientStatus"
+
 attestation:
   keyAttestation:
     maintenance: "P60D"

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html th:replace="~{layout/base :: page(~{::section})}" xmlns:th="http://www.thymeleaf.org">
+<body>
+<section>
+    <h2 class="mb-4">Wallet Provider</h2>
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row g-3 align-items-center">
+                <div class="col-lg-7">
+                    <div class="text-muted small mb-1">EUDI Wallet ecosystem</div>
+                    <div>
+                        This service attests wallet instances of <strong th:text="${walletName}"></strong>: it verifies
+                        the key attestation of the device with Warden Supreme, issues Wallet Instance Attestations and
+                        Key Attestations according to TS3 (Wallet Unit Attestation), and publishes their revocation
+                        status as Token Status Lists.
+                    </div>
+                    <div class="alert alert-warning mt-3 mb-0 py-2">This service is a technology demonstrator.</div>
+                </div>
+                <div class="col-lg-5">
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <div class="border rounded p-3 h-100">
+                                <div class="text-muted small">Wallet name</div>
+                                <div class="fs-5 fw-semibold text-break" th:text="${provider.solutionId}"></div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="border rounded p-3 h-100">
+                                <div class="text-muted small">Certification</div>
+                                <div class="fw-semibold text-break" th:text="${provider.issuer}"></div>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="border rounded p-3 h-100">
+                                <div class="text-muted small">Client identifier</div>
+                                <div class="fw-semibold text-break" th:text="${provider.clientId}"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <h3>Endpoints</h3>
+    <table class="table table-bordered">
+        <thead class="table-dark">
+        <tr>
+            <th>Method</th>
+            <th>URL</th>
+            <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="endpoint : ${endpoints}">
+            <td><span class="badge bg-secondary" th:text="${endpoint.method}"></span></td>
+            <td class="text-break">
+                <code th:text="${endpoint.url}"></code>
+            </td>
+            <td th:text="${endpoint.description}"></td>
+        </tr>
+        </tbody>
+    </table>
+
+    <h3 class="mt-4">Attestations</h3>
+    <table class="table table-bordered">
+        <thead class="table-dark">
+        <tr>
+            <th>Attestation</th>
+            <th>JWT type</th>
+            <th>Validity of the JWT</th>
+            <th>Status maintained for</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+            <td>Wallet Instance Attestation</td>
+            <td><code>oauth-client-attestation+jwt</code></td>
+            <td th:text="${instanceLifetime}"></td>
+            <td th:text="${instanceMaintenance}"></td>
+        </tr>
+        <tr>
+            <td>Key Attestation</td>
+            <td><code>keyattestation+jwt</code></td>
+            <td th:text="${keyLifetime}"></td>
+            <td th:text="${keyMaintenance}"></td>
+        </tr>
+        </tbody>
+    </table>
+</section>
+</body>
+</html>

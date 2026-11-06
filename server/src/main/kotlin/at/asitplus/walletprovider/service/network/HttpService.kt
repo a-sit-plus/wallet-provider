@@ -8,15 +8,12 @@ import at.asitplus.wallet.lib.data.rfc.tokenStatusList.RevocationList
 import at.asitplus.wallet.lib.data.rfc.tokenStatusList.primitives.TokenStatus
 import at.asitplus.walletprovider.data.ConfigData
 import at.asitplus.walletprovider.data.KeyAttestationRequest
-import at.asitplus.walletprovider.data.template.RootPageTemplate
-import at.asitplus.walletprovider.data.template.StatusFormTemplate
 import at.asitplus.walletprovider.service.crypto.AttestationService
 import at.asitplus.walletprovider.service.storage.ClientTokenStoreService
 import at.asitplus.walletprovider.service.storage.KeyStorageTokenStoreService
+import at.asitplus.walletprovider.service.storage.TokenStoreService
 import at.asitplus.walletprovider.service.storage.getMap
 import io.github.aakira.napier.Napier
-import io.ktor.http.*
-import io.ktor.util.*
 import kotlinx.serialization.json.Json
 
 class HttpService(
@@ -25,65 +22,43 @@ class HttpService(
     val keyStorageTokenStoreService: KeyStorageTokenStoreService,
     val attestationService: AttestationService,
 ) {
-    fun handleRootPageRequest() = catchingUnwrapped {
-        RootPageTemplate(
-            endpointKeyStorageStatus = configData.endpoint.viewKeyStorageStatus,
-            endpointClientStatus = configData.endpoint.viewClientStatus
+    suspend fun handleKeyStorageStatusRequest(period: Int) = catchingUnwrapped {
+        keyStorageTokenStoreService.statusListAgent.issueStatusListJwt(
+            kind = RevocationList.Kind.STATUS_LIST,
+            timePeriod = period
         )
     }
 
-    suspend fun handleKeyStorageStatusRequest(params: Parameters) = catchingUnwrapped {
-        params.parsePeriod().let {
-            keyStorageTokenStoreService.statusListAgent.issueStatusListJwt(
-                kind = RevocationList.Kind.STATUS_LIST,
-                timePeriod = it
-            )
-        }
-    }
-
-    suspend fun handleClientStatusRequest(params: Parameters) = catchingUnwrapped {
-        params.parsePeriod().let {
-            clientTokenStoreService.statusListAgent.issueStatusListJwt(
-                kind = RevocationList.Kind.STATUS_LIST,
-                timePeriod = it
-            )
-        }
-    }
-
-    fun handleViewKeyStorageStatusRequest() = catchingUnwrapped {
-        StatusFormTemplate(
-            endpoint = configData.endpoint.updateKeyStorageStatus,
-            data = keyStorageTokenStoreService.tokenStore.getStatusListView(configData.status.fixedTimePeriod)
-                .getMap()
+    suspend fun handleClientStatusRequest(period: Int) = catchingUnwrapped {
+        clientTokenStoreService.statusListAgent.issueStatusListJwt(
+            kind = RevocationList.Kind.STATUS_LIST,
+            timePeriod = period
         )
     }
 
-    fun handleUpdateKeyStorageStatusRequest(params: Parameters) = catchingUnwrapped {
-        params.flattenEntries().forEach {
-            keyStorageTokenStoreService.tokenStore.setStatus(
-                configData.status.fixedTimePeriod,
-                it.first.toULong(),
-                TokenStatus(it.second.toUInt())
-            )
-        }
+    /** Status values of all key attestations of the current time period, by status list index */
+    fun keyStorageStatuses(): Map<UInt, Int> = keyStorageTokenStoreService.issuedStatuses()
+
+    /** Status values of all instance attestations of the current time period, by status list index */
+    fun clientStatuses(): Map<UInt, Int> = clientTokenStoreService.issuedStatuses()
+
+    /** Statuses of the indices handed out so far, without the padding of the last byte of the status list */
+    private fun TokenStoreService.issuedStatuses(): Map<UInt, Int> {
+        val period = configData.status.fixedTimePeriod
+        val issued = tokenStore.exportData()[period]?.first ?: 0
+        return tokenStore.getStatusListView(period).getMap().filterKeys { it < issued.toUInt() }
     }
 
-    fun handleViewClientStatusRequest() = catchingUnwrapped {
-        StatusFormTemplate(
-            endpoint = configData.endpoint.updateClientStatus,
-            data = clientTokenStoreService.tokenStore.getStatusListView(configData.status.fixedTimePeriod)
-                .getMap()
-        )
-    }
+    fun updateKeyStorageStatuses(statuses: Map<ULong, UInt>) = keyStorageTokenStoreService.updateStatuses(statuses)
 
-    fun handleUpdateClientStatusRequest(params: Parameters) = catchingUnwrapped {
-        params.flattenEntries().forEach {
-            clientTokenStoreService.tokenStore.setStatus(
-                configData.status.fixedTimePeriod,
-                it.first.toULong(),
-                TokenStatus(it.second.toUInt())
-            )
+    fun updateClientStatuses(statuses: Map<ULong, UInt>) = clientTokenStoreService.updateStatuses(statuses)
+
+    /** Sets the [statuses] by status list index and writes them to the database right away, not only on the next export */
+    private fun TokenStoreService.updateStatuses(statuses: Map<ULong, UInt>) = catchingUnwrapped {
+        statuses.forEach { (index, status) ->
+            tokenStore.setStatus(configData.status.fixedTimePeriod, index, TokenStatus(status))
         }
+        saveToDatabase(tokenStore.exportData()).getOrThrow()
     }
 
     suspend fun handleChallengeRequest() = catchingUnwrapped {
@@ -101,34 +76,22 @@ class HttpService(
 
     suspend fun handleInstanceRequest(request: ByteArray) = catchingUnwrapped {
         Napier.i("Start Instance Attestation", tag = "HttpService")
-        val idx = clientTokenStoreService.tokenStore.getNextFreeIndex(configData.status.fixedTimePeriod)
-        Pkcs10CertificationRequest.decodeFromDer(request).let { csr ->
-            attestationService.buildInstanceAttestation(csr, idx).onSuccess {
-                clientTokenStoreService.tokenStore.setStatus(
-                    configData.status.fixedTimePeriod,
-                    idx.toULong(),
-                    TokenStatus.Valid
-                )
-            }.getOrThrow()
-        }
+        val csr = Pkcs10CertificationRequest.decodeFromDer(request)
+        attestationService.buildInstanceAttestation(csr) { clientTokenStoreService.issueIndex() }.getOrThrow()
     }
 
     suspend fun handleKeyAttestationRequest(request: String) = catchingUnwrapped {
         Napier.i("Start KeyAttestation", tag = "HttpService")
-        val idx = keyStorageTokenStoreService.tokenStore.getNextFreeIndex(configData.status.fixedTimePeriod)
-        attestationService.buildKeyAttestation(
-            joseCompliantSerializer.decodeFromString<KeyAttestationRequest>(request),
-            idx
-        )
-            .onSuccess {
-                keyStorageTokenStoreService.tokenStore.setStatus(
-                    configData.status.fixedTimePeriod,
-                    idx.toULong(),
-                    TokenStatus.Valid
-                )
-            }.getOrThrow()
+        val keyAttestationRequest = joseCompliantSerializer.decodeFromString<KeyAttestationRequest>(request)
+        attestationService.buildKeyAttestation(keyAttestationRequest) { keyStorageTokenStoreService.issueIndex() }
+            .getOrThrow()
     }
 
-    private fun Parameters.parsePeriod(): Int = (this["period"] ?: throw Throwable("No period in URL")).toInt()
-
+    /**
+     * Hands out the next status list index, with status valid; only for attestations that passed verification, so a
+     * rejected request does not use up an index.
+     */
+    private fun TokenStoreService.issueIndex(): Int = configData.status.fixedTimePeriod.let { period ->
+        tokenStore.getNextFreeIndex(period).also { tokenStore.setStatus(period, it.toULong(), TokenStatus.Valid) }
+    }
 }

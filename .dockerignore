@@ -1,0 +1,13 @@
+.git
+.gitignore
+.gradle
+.idea
+.kotlin
+**/build
+data
+server/data
+# Key material and secrets are mounted at runtime (/vault, environment), never built into an image.
+vault
+.env
+**/*.p12
+**/application-secrets.yaml

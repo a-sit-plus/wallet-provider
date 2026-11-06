@@ -3,90 +3,61 @@ package at.asitplus.walletprovider.service.storage
 import at.asitplus.catchingUnwrapped
 import at.asitplus.wallet.lib.data.rfc.tokenStatusList.StatusListView
 import at.asitplus.wallet.lib.data.rfc.tokenStatusList.primitives.TokenStatusBitSize
-import at.asitplus.walletprovider.data.ConfigData
-import org.jetbrains.exposed.v1.core.Table
-import org.jetbrains.exposed.v1.jdbc.Database
-import org.jetbrains.exposed.v1.jdbc.SchemaUtils
-import org.jetbrains.exposed.v1.jdbc.selectAll
-import org.jetbrains.exposed.v1.jdbc.transactions.transaction
-import org.jetbrains.exposed.v1.jdbc.upsert
+import org.springframework.jdbc.core.JdbcTemplate
+import org.springframework.jdbc.core.RowMapper
+import org.springframework.transaction.support.TransactionTemplate
 
-class DatabaseService(config: ConfigData) {
-    init {
-        Database.connect(
-            url = config.database.url, driver = config.database.driver
-        )
-        transaction {
-            SchemaUtils.create(KeyStorageStatusLists)
-            SchemaUtils.create(ClientStatusLists)
-        }
-    }
+/**
+ * Stores the status lists, one row per time period with its index counter, in the provider's schema
+ * (`spring.flyway.default-schema`); the tables are created by Flyway, see `db/walletprovider`.
+ */
+class DatabaseService(
+    private val jdbc: JdbcTemplate,
+    private val transactions: TransactionTemplate,
+    schema: String,
+) {
+    // Quoted, so that it is the schema exactly as Flyway creates it (lowercase on H2 as well as on PostgreSQL).
+    private val keyStorageTable = "\"$schema\".key_storage_status_lists"
+    private val clientTable = "\"$schema\".client_status_lists"
 
-    object KeyStorageStatusLists : Table("key_storage_status") {
-        val timePeriod = integer("time_period")
-        val data = binary("data")
-        val counter = integer("counter")
-        val statusBitSize = varchar("status_bit_size", 50)
+    fun loadKeyStorageStatusLists() = catchingUnwrapped { load(keyStorageTable) }
 
-        override val primaryKey = PrimaryKey(timePeriod)
-    }
-
-    object ClientStatusLists : Table("client_status_lists") {
-        val timePeriod = integer("time_period")
-        val data = binary("data")
-        val counter = integer("counter")
-        val statusBitSize = varchar("status_bit_size", 50)
-
-        override val primaryKey = PrimaryKey(timePeriod)
-    }
-
-    fun loadKeyStorageStatusLists() = catchingUnwrapped {
-        transaction {
-            KeyStorageStatusLists.selectAll().associate {
-                it[KeyStorageStatusLists.timePeriod] to (it[KeyStorageStatusLists.counter] to StatusListView(
-                    uncompressed = it[KeyStorageStatusLists.data],
-                    statusBitSize = TokenStatusBitSize.valueOf(it[KeyStorageStatusLists.statusBitSize]),
-                ))
-            }
-        }
-    }
-
-    fun loadClientStatusLists() = catchingUnwrapped {
-        transaction {
-            ClientStatusLists.selectAll().associate {
-                it[ClientStatusLists.timePeriod] to (it[ClientStatusLists.counter] to StatusListView(
-                    uncompressed = it[ClientStatusLists.data],
-                    statusBitSize = TokenStatusBitSize.valueOf(it[ClientStatusLists.statusBitSize]),
-                ))
-            }
-        }
-    }
-
+    fun loadClientStatusLists() = catchingUnwrapped { load(clientTable) }
 
     fun saveKeyStorageStatusLists(data: Map<Int, Pair<Int, StatusListView>>) = catchingUnwrapped {
-        data.forEach { timePeriod, (counter, statusListView) ->
-            transaction {
-                KeyStorageStatusLists.upsert {
-                    it[KeyStorageStatusLists.timePeriod] = timePeriod
-                    it[KeyStorageStatusLists.data] = statusListView.uncompressed
-                    it[KeyStorageStatusLists.counter] = counter
-                    it[statusBitSize] = statusListView.statusBitSize.name
-                }
-            }
-        }
+        save(keyStorageTable, data)
     }
 
     fun saveClientStatusLists(data: Map<Int, Pair<Int, StatusListView>>) = catchingUnwrapped {
-        data.forEach { timePeriod, (counter, statusListView) ->
-            transaction {
-                ClientStatusLists.upsert {
-                    it[ClientStatusLists.timePeriod] = timePeriod
-                    it[ClientStatusLists.data] = statusListView.uncompressed
-                    it[ClientStatusLists.counter] = counter
-                    it[statusBitSize] = statusListView.statusBitSize.name
+        save(clientTable, data)
+    }
+
+    /** Status lists with their index counters, by time period */
+    private fun load(table: String): Map<Int, Pair<Int, StatusListView>> =
+        jdbc.query("SELECT time_period, data, counter, status_bit_size FROM $table", RowMapper { rs, _ ->
+            rs.getInt("time_period") to (rs.getInt("counter") to StatusListView(
+                uncompressed = rs.getBytes("data"),
+                statusBitSize = TokenStatusBitSize.valueOf(rs.getString("status_bit_size")),
+            ))
+        }).toMap()
+
+    /** Updates the rows of the time periods in [data], or inserts them if there are none yet */
+    private fun save(table: String, data: Map<Int, Pair<Int, StatusListView>>) {
+        transactions.executeWithoutResult {
+            data.forEach { (timePeriod, entry) ->
+                val (counter, statusListView) = entry
+                val bitSize = statusListView.statusBitSize.name
+                val updated = jdbc.update(
+                    "UPDATE $table SET data = ?, counter = ?, status_bit_size = ? WHERE time_period = ?",
+                    statusListView.uncompressed, counter, bitSize, timePeriod
+                )
+                if (updated == 0) {
+                    jdbc.update(
+                        "INSERT INTO $table (time_period, data, counter, status_bit_size) VALUES (?, ?, ?, ?)",
+                        timePeriod, statusListView.uncompressed, counter, bitSize
+                    )
                 }
             }
         }
     }
-
 }

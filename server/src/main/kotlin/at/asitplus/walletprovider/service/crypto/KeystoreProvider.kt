@@ -10,7 +10,6 @@ import at.asitplus.signum.supreme.sign.signerFor
 import at.asitplus.wallet.lib.agent.KeyMaterial
 import at.asitplus.wallet.lib.agent.SignerBasedKeyMaterial
 import at.asitplus.walletprovider.data.ConfigData
-import io.ktor.util.*
 import java.io.File
 import java.security.KeyStore
 import java.security.PrivateKey
