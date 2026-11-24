@@ -72,6 +72,9 @@ attestation:
   instanceAttestation:
     maintenance: "P60D"
     lifetime: "PT12H"
+  # See AttestationConfigData
+  maxKeysPerKeyAttestation: 50
+  refuseAttestedKeys: false
 
 supreme:
   ios:

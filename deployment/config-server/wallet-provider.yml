@@ -35,6 +35,8 @@ attestation:
   instanceAttestation:
     maintenance: "P60D"
     lifetime: "PT12H"
+  maxKeysPerKeyAttestation: 50
+  refuseAttestedKeys: false
 
 # The accepted apps and devices (Warden Supreme) are configured in the section `supreme` of application.yaml. Values
 # given here override single values there (e.g. `supreme.android.requireStrongBox: true`); a list, e.g. of the

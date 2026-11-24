@@ -35,10 +35,12 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.MediaType
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user
+import org.springframework.test.context.TestPropertySource
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import kotlin.time.Clock
@@ -46,7 +48,7 @@ import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.minutes
 
 /** The wallet API over HTTP, as the wallet app and verifiers use it. */
-class ApiEndpointsTest : ProviderTestSupport() {
+open class ApiEndpointsTest : ProviderTestSupport() {
 
     @Autowired
     lateinit var httpService: HttpService
@@ -102,6 +104,12 @@ class ApiEndpointsTest : ProviderTestSupport() {
         instanceKey: KeyMaterial,
         attestedKey: KeyMaterial,
         issuerNonce: String? = null,
+    ): String = keyAttestationRequest(instanceKey, listOf(attestedKey), issuerNonce)
+
+    private fun keyAttestationRequest(
+        instanceKey: KeyMaterial,
+        attestedKeys: List<KeyMaterial>,
+        issuerNonce: String? = null,
     ): String = runBlocking {
         val instanceAttestation = requestInstanceAttestationJws(instanceKey)
         val proof = SignJwt<JsonWebToken>(instanceKey, headerModifier = JwsHeaderNone())(
@@ -118,7 +126,7 @@ class ApiEndpointsTest : ProviderTestSupport() {
             KeyAttestationRequest(
                 token = instanceAttestation,
                 proof = proof.jws.toString(),
-                keys = listOf(attestedKey.jsonWebKey),
+                keys = attestedKeys.map { it.jsonWebKey },
                 keyStorage = setOf("iso_18045_high"),
                 userAuthentication = setOf("iso_18045_high"),
                 nonce = issuerNonce,
@@ -174,6 +182,63 @@ class ApiEndpointsTest : ProviderTestSupport() {
             .let { JwsCompactTyped<KeyAttestationJwt>(it) }
 
         assertEquals("issuer-nonce", keyAttestation.payload.nonce)
+    }
+
+    private fun postKeyAttestation(request: String) =
+        mockMvc.perform(post(configData.endpoint.keyAttestation).contentType(MediaType.APPLICATION_JSON).content(request))
+
+    @Test
+    fun `several keys are attested in the order requested`() {
+        val keys = List(3) { EphemeralKeyWithoutCert() }
+
+        val keyAttestation = postKeyAttestation(keyAttestationRequest(EphemeralKeyWithoutCert(), keys))
+            .andExpect(status().isOk)
+            .andReturn().response.contentAsString
+            .let { JwsCompactTyped<KeyAttestationJwt>(it) }
+
+        assertEquals(keys.map { it.jsonWebKey }, keyAttestation.payload.attestedKeys.toList())
+    }
+
+    @Test
+    fun `a key attested before is refused only if configured`() {
+        val attestedKey = EphemeralKeyWithoutCert()
+        postKeyAttestation(keyAttestationRequest(EphemeralKeyWithoutCert(), attestedKey)).andExpect(status().isOk)
+
+        // Also by another wallet instance, and together with a new key
+        val newKey = EphemeralKeyWithoutCert()
+        val issued = issuedIndices(httpService.keyStorageTokenStoreService)
+        val again = postKeyAttestation(keyAttestationRequest(EphemeralKeyWithoutCert(), listOf(newKey, attestedKey)))
+        if (configData.attestation.refuseAttestedKeys) {
+            again.andExpect(status().isBadRequest)
+            // Nothing is issued, and the new key is not recorded, so it can still be attested
+            assertEquals(issued, issuedIndices(httpService.keyStorageTokenStoreService))
+            postKeyAttestation(keyAttestationRequest(EphemeralKeyWithoutCert(), newKey)).andExpect(status().isOk)
+        } else {
+            // Attested again, as wallets reusing their key are supported, but the new key is recorded now
+            again.andExpect(status().isOk)
+            assertTrue(httpService.attestedKeys.recordAttestedKeys(listOf(EphemeralKeyWithoutCert().jsonWebKey.jwkThumbprint)))
+            assertFalse(httpService.attestedKeys.recordAttestedKeys(listOf(newKey.jsonWebKey.jwkThumbprint)))
+        }
+    }
+
+    @Test
+    fun `a key occurring twice in one request is refused`() {
+        val key = EphemeralKeyWithoutCert()
+
+        postKeyAttestation(keyAttestationRequest(EphemeralKeyWithoutCert(), listOf(key, key)))
+            .andExpect(status().isBadRequest)
+    }
+
+    @Test
+    fun `the number of keys of a request is limited`() {
+        val max = configData.attestation.maxKeysPerKeyAttestation
+
+        postKeyAttestation(keyAttestationRequest(EphemeralKeyWithoutCert(), List(max + 1) { EphemeralKeyWithoutCert() }))
+            .andExpect(status().isBadRequest)
+        postKeyAttestation(keyAttestationRequest(EphemeralKeyWithoutCert(), emptyList()))
+            .andExpect(status().isBadRequest)
+        postKeyAttestation(keyAttestationRequest(EphemeralKeyWithoutCert(), List(max) { EphemeralKeyWithoutCert() }))
+            .andExpect(status().isOk)
     }
 
     @Test
@@ -233,3 +298,7 @@ class ApiEndpointsTest : ProviderTestSupport() {
         assertEquals(TokenStatus.Invalid, statusList[index])
     }
 }
+
+/** [ApiEndpointsTest] with keys attested before refused, see `attestation.refuseAttestedKeys`. */
+@TestPropertySource(properties = ["attestation.refuse-attested-keys=true"])
+class ApiEndpointsRefusingAttestedKeysTest : ApiEndpointsTest()

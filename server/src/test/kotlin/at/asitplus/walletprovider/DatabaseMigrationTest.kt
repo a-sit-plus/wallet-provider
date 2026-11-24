@@ -20,8 +20,8 @@ class DatabaseMigrationTest : ProviderTestSupport() {
         val info = flyway.info()
         // Without the entry Flyway records for creating the schema `wallet_provider`, which has no version
         val migrations = info.applied().filter { it.version != null }
-        assertEquals(listOf("1", "2"), migrations.map { it.version.version })
-        assertEquals(listOf(MigrationState.SUCCESS, MigrationState.SUCCESS), migrations.map { it.state })
+        assertEquals(listOf("1", "2", "3"), migrations.map { it.version.version })
+        assertEquals(List(3) { MigrationState.SUCCESS }, migrations.map { it.state })
         assertEquals(0, info.pending().size)
     }
 }

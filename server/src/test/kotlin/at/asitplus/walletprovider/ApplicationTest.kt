@@ -115,7 +115,7 @@ class ApplicationTest : ProviderTestSupport() {
 
         )
 
-        val keyAttestation = attestationService.buildKeyAttestation(keyAttestationRequest) { 0 }.getOrThrow()
+        val keyAttestation = attestationService.buildKeyAttestation(keyAttestationRequest, { true }) { 0 }.getOrThrow()
         assertEquals(
             VerifyJwsSignature().invoke(keyAttestation.jws, attestationService.keyMaterial.publicKey).isSuccess,
             true

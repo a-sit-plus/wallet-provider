@@ -88,5 +88,6 @@ class ProviderBeans {
         clientTokenStoreService: ClientTokenStoreService,
         keyStorageTokenStoreService: KeyStorageTokenStoreService,
         attestationService: AttestationService,
-    ) = HttpService(configData, clientTokenStoreService, keyStorageTokenStoreService, attestationService)
+        databaseService: DatabaseService,
+    ) = HttpService(configData, clientTokenStoreService, keyStorageTokenStoreService, attestationService, databaseService)
 }

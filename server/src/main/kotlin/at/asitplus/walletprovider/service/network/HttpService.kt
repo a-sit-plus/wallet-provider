@@ -9,6 +9,7 @@ import at.asitplus.wallet.lib.data.rfc.tokenStatusList.primitives.TokenStatus
 import at.asitplus.walletprovider.data.ConfigData
 import at.asitplus.walletprovider.data.KeyAttestationRequest
 import at.asitplus.walletprovider.service.crypto.AttestationService
+import at.asitplus.walletprovider.service.storage.AttestedKeyRegistry
 import at.asitplus.walletprovider.service.storage.ClientTokenStoreService
 import at.asitplus.walletprovider.service.storage.KeyStorageTokenStoreService
 import at.asitplus.walletprovider.service.storage.TokenStoreService
@@ -21,6 +22,7 @@ class HttpService(
     val clientTokenStoreService: ClientTokenStoreService,
     val keyStorageTokenStoreService: KeyStorageTokenStoreService,
     val attestationService: AttestationService,
+    val attestedKeys: AttestedKeyRegistry,
 ) {
     suspend fun handleKeyStorageStatusRequest(period: Int) = catchingUnwrapped {
         keyStorageTokenStoreService.statusListAgent.issueStatusListJwt(
@@ -83,7 +85,9 @@ class HttpService(
     suspend fun handleKeyAttestationRequest(request: String) = catchingUnwrapped {
         Napier.i("Start KeyAttestation", tag = "HttpService")
         val keyAttestationRequest = joseCompliantSerializer.decodeFromString<KeyAttestationRequest>(request)
-        attestationService.buildKeyAttestation(keyAttestationRequest) { keyStorageTokenStoreService.issueIndex() }
+        attestationService.buildKeyAttestation(keyAttestationRequest, attestedKeys) {
+            keyStorageTokenStoreService.issueIndex()
+        }
             .getOrThrow()
     }
 

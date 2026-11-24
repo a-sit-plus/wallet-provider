@@ -22,9 +22,11 @@ import at.asitplus.wallet.lib.jws.SignJwt
 import at.asitplus.wallet.lib.jws.SignJwtFun
 import at.asitplus.wallet.lib.jws.VerifyJwsSignature
 import at.asitplus.wallet.lib.oidvci.BuildClientAttestationJwt
+import at.asitplus.walletprovider.data.AttestationConfigData
 import at.asitplus.walletprovider.data.ConfigData
 import at.asitplus.walletprovider.data.InstanceAttestationRequest
 import at.asitplus.walletprovider.data.KeyAttestationRequest
+import at.asitplus.walletprovider.service.storage.AttestedKeyRegistry
 import io.github.aakira.napier.Napier
 import kotlinx.datetime.TimeZone
 import kotlinx.serialization.json.Json
@@ -116,8 +118,21 @@ interface AttestationService {
      * its status list index and is only called once the verification has succeeded.
      *
      * Carries the issuer's `c_nonce` from [request] in the key attestation (OpenID4VCI 1.0, F.1, F.3).
+     *
+     * Records keys after verification, even if building the attestation fails. The key limit and optional reuse
+     * rejection are configured in [AttestationConfigData].
      */
-    suspend fun buildKeyAttestation(request: KeyAttestationRequest, nextIndex: () -> Int) = catchingUnwrapped {
+    suspend fun buildKeyAttestation(
+        request: KeyAttestationRequest,
+        attestedKeys: AttestedKeyRegistry,
+        nextIndex: () -> Int,
+    ) = catchingUnwrapped {
+        require(request.keys.isNotEmpty()) { "No keys to attest" }
+        require(request.keys.size <= configData.attestation.maxKeysPerKeyAttestation) {
+            "More than ${configData.attestation.maxKeysPerKeyAttestation} keys to attest"
+        }
+        val thumbprints = request.keys.map { it.jwkThumbprint }
+        require(thumbprints.toSet().size == thumbprints.size) { "A key occurs more than once" }
         val token = catching { JwsCompactTyped<JsonWebToken>(request.token) }.getOrThrow()
 
         val proof = catching { JwsCompactTyped<JsonWebToken>(request.proof) }.getOrThrow()
@@ -125,6 +140,12 @@ interface AttestationService {
 
         when (verifyInstanceAttestation(token, proof).getOrDefault(false)) {
             true -> {
+                if (!attestedKeys.recordAttestedKeys(thumbprints)) {
+                    require(!configData.attestation.refuseAttestedKeys) { "A key has been attested before" }
+                    Napier.w("Attesting a key again that has been attested before", tag = "AttestationService")
+                    // Record the keys not attested before, each on its own
+                    thumbprints.forEach { attestedKeys.recordAttestedKeys(listOf(it)) }
+                }
                 return@catchingUnwrapped BuildKeyAttestationJwt(
                     SignJwt(keyMaterial, JwsHeaderCertOrJwk()),
                     lifetime = configData.attestation.keyAttestation.lifetime.toKotlinDuration(),
