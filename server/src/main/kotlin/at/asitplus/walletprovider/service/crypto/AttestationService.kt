@@ -103,14 +103,21 @@ interface AttestationService {
         }
     }
 
+    /**
+     * Whether [token] is a valid Wallet Instance Attestation of this provider, not expired, and [proof] proves
+     * possession of its key with a nonce of this provider. The WIA has "a time-to-live of less than 24 hours" (TS3,
+     * 2.2.1.1); an expired one is no longer evidence of the integrity of the Wallet Instance, on which issuing key
+     * attestations rests.
+     */
     suspend fun verifyInstanceAttestation(token: JwsCompactTyped<JsonWebToken>, proof: JwsCompactTyped<JsonWebToken>) =
         catchingUnwrapped {
             val clientKey = token.payload.confirmationClaim?.jsonWebKey?.toCryptoPublicKey()?.getOrThrow()!!
             val instanceAttestationValid =
                 VerifyJwsSignature().invoke(token.jws, keyMaterial.publicKey).isSuccess
+            val notExpired = token.payload.expiration?.let { it > now() } == true
             val proofValid = VerifyJwsSignature().invoke(proof.jws, clientKey).isSuccess
             val nonceValid = verifyNonce(proof.payload.nonce!!)
-            return@catchingUnwrapped (instanceAttestationValid && proofValid && nonceValid)
+            return@catchingUnwrapped (instanceAttestationValid && notExpired && proofValid && nonceValid)
         }
 
     /**
