@@ -114,6 +114,8 @@ interface AttestationService {
     /**
      * Verifies the instance attestation and its proof in [request] and issues the Key Attestation; [nextIndex] hands out
      * its status list index and is only called once the verification has succeeded.
+     *
+     * Carries the issuer's `c_nonce` from [request] in the key attestation (OpenID4VCI 1.0, F.1, F.3).
      */
     suspend fun buildKeyAttestation(request: KeyAttestationRequest, nextIndex: () -> Int) = catchingUnwrapped {
         val token = catching { JwsCompactTyped<JsonWebToken>(request.token) }.getOrThrow()
@@ -130,6 +132,7 @@ interface AttestationService {
                     keyStorage = request.keyStorage,
                     userAuthentication = request.userAuthentication,
                     certification = configData.provider.storageCertificationInfo,
+                    nonce = request.nonce,
                     keyStorageStatus = KeyStorageStatus(
                         status = statusListReference(
                             nextIndex(), configData.buildEndpointString(

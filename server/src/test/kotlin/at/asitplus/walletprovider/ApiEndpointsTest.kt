@@ -98,7 +98,11 @@ class ApiEndpointsTest : ProviderTestSupport() {
             .andReturn().response.contentAsString
             .let { joseCompliantSerializer.decodeFromString<ClientNonceResponse>(it).clientNonce }
 
-    private fun keyAttestationRequest(instanceKey: KeyMaterial, attestedKey: KeyMaterial): String = runBlocking {
+    private fun keyAttestationRequest(
+        instanceKey: KeyMaterial,
+        attestedKey: KeyMaterial,
+        issuerNonce: String? = null,
+    ): String = runBlocking {
         val instanceAttestation = requestInstanceAttestationJws(instanceKey)
         val proof = SignJwt<JsonWebToken>(instanceKey, headerModifier = JwsHeaderNone())(
             CLIENT_ATTESTATION_POP_JWT,
@@ -117,7 +121,7 @@ class ApiEndpointsTest : ProviderTestSupport() {
                 keys = listOf(attestedKey.jsonWebKey),
                 keyStorage = setOf("iso_18045_high"),
                 userAuthentication = setOf("iso_18045_high"),
-                nonce = null,
+                nonce = issuerNonce,
                 preferredKeyStorageStatusPeriod = 31.days,
                 supportedAlgorithms = setOf()
             )
@@ -156,6 +160,20 @@ class ApiEndpointsTest : ProviderTestSupport() {
             post(configData.endpoint.keyAttestation).contentType(MediaType.APPLICATION_JSON).content(request)
         ).andExpect(status().isBadRequest)
         assertEquals(issued, issuedIndices(httpService.keyStorageTokenStoreService))
+    }
+
+    @Test
+    fun `key attestation carries the issuer's nonce`() {
+        val request = keyAttestationRequest(EphemeralKeyWithoutCert(), EphemeralKeyWithoutCert(), "issuer-nonce")
+
+        val keyAttestation = mockMvc.perform(
+            post(configData.endpoint.keyAttestation).contentType(MediaType.APPLICATION_JSON).content(request)
+        )
+            .andExpect(status().isOk)
+            .andReturn().response.contentAsString
+            .let { JwsCompactTyped<KeyAttestationJwt>(it) }
+
+        assertEquals("issuer-nonce", keyAttestation.payload.nonce)
     }
 
     @Test
