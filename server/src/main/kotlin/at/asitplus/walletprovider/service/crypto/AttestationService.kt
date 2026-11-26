@@ -139,7 +139,7 @@ interface AttestationService {
             "More than ${configData.attestation.maxKeysPerKeyAttestation} keys to attest"
         }
         val thumbprints = request.keys.map { it.jwkThumbprint }
-        require(thumbprints.toSet().size == thumbprints.size) { "A key occurs more than once" }
+        require(thumbprints.toSet().size == request.keys.size) { "A key occurs more than once" }
         val token = catching { JwsCompactTyped<JsonWebToken>(request.token) }.getOrThrow()
 
         val proof = catching { JwsCompactTyped<JsonWebToken>(request.proof) }.getOrThrow()
