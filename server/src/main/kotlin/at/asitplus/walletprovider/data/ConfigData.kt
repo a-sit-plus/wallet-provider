@@ -56,7 +56,23 @@ data class EndpointConfigData(
 data class AttestationConfigData(
     val keyAttestation: AttestationDurations,
     val instanceAttestation: AttestationDurations,
+    /**
+     * The most keys one key attestation attests, a limit against oversized requests: the issuer's batch size, which a
+     * wallet's keys "SHOULD NOT exceed" (TS3, 2.2.2.1), isn't known here.
+     */
+    val maxKeysPerKeyAttestation: Int = 50,
+    /**
+     * Whether a key that has been attested before is refused, as "each public key [...] shall only be included at
+     * most in one KA" (TS3, 2.2.2.1). Off by default, as long as wallets that attest the same key at every issuance
+     * are supported, e.g. Valera before it uses a new key per credential: then such a key is attested again, with a
+     * warning. Keys are recorded either way, so that switching it on refuses every key attested since.
+     */
+    val refuseAttestedKeys: Boolean = false,
 ) {
+    init {
+        require(maxKeysPerKeyAttestation >= 1) { "maxKeysPerKeyAttestation must be at least 1" }
+    }
+
     data class AttestationDurations(
         val maintenance: Duration,
         val lifetime: Duration,

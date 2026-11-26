@@ -3,22 +3,49 @@ package at.asitplus.walletprovider.service.storage
 import at.asitplus.catchingUnwrapped
 import at.asitplus.wallet.lib.data.rfc.tokenStatusList.StatusListView
 import at.asitplus.wallet.lib.data.rfc.tokenStatusList.primitives.TokenStatusBitSize
+import org.springframework.dao.DuplicateKeyException
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.jdbc.core.RowMapper
 import org.springframework.transaction.support.TransactionTemplate
 
 /**
- * Stores the status lists, one row per time period with its index counter, in the provider's schema
- * (`spring.flyway.default-schema`); the tables are created by Flyway, see `db/walletprovider`.
+ * Records the keys of the issued key attestations: "Wallet Providers SHALL ensure that [...] each public key [...]
+ * shall only be included at most in one KA" (TS3, 2.2.2.1).
+ */
+fun interface AttestedKeyRegistry {
+    /**
+     * Records the keys with the JWK [thumbprints] as attested, all or none: `false`, recording none, if one of them has
+     * been attested before or occurs more than once.
+     */
+    fun recordAttestedKeys(thumbprints: Collection<String>): Boolean
+}
+
+/**
+ * Stores the status lists, one row per time period with its index counter, and the attested keys, in the provider's
+ * schema (`spring.flyway.default-schema`); the tables are created by Flyway, see `db/walletprovider`.
  */
 class DatabaseService(
     private val jdbc: JdbcTemplate,
     private val transactions: TransactionTemplate,
     schema: String,
-) {
+) : AttestedKeyRegistry {
     // Quoted, so that it is the schema exactly as Flyway creates it (lowercase on H2 as well as on PostgreSQL).
     private val keyStorageTable = "\"$schema\".key_storage_status_lists"
     private val clientTable = "\"$schema\".client_status_lists"
+    private val attestedKeysTable = "\"$schema\".attested_keys"
+
+    /**
+     * Inserts all [thumbprints] in one transaction, which the primary key makes fail for a key recorded before; in
+     * sorted order, so that concurrent requests with overlapping keys don't deadlock.
+     */
+    override fun recordAttestedKeys(thumbprints: Collection<String>): Boolean = try {
+        transactions.executeWithoutResult {
+            thumbprints.sorted().forEach { jdbc.update("INSERT INTO $attestedKeysTable (thumbprint) VALUES (?)", it) }
+        }
+        true
+    } catch (_: DuplicateKeyException) {
+        false
+    }
 
     fun loadKeyStorageStatusLists() = catchingUnwrapped { load(keyStorageTable) }
 

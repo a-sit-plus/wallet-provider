@@ -65,6 +65,8 @@ The service is a Spring Boot application, configured through `server/src/main/re
 | **attestation.instanceAttestation** |                        |                                                                                                |
 |                                     | maintenance            | Duration how long the provider maintains the clientStatus                                      |
 |                                     | lifetime               | Technical validity of the instance attestation jwt                                             |
+| **attestation**                     | maxKeysPerKeyAttestation | Most keys one key attestation attests (default 50)                                           |
+|                                     | refuseAttestedKeys     | Refuse a key attested before (TS3 2.2.2.1), default off; keys are recorded in the database either way |
 | **supreme**                         | SupremeConfiguration   | Configuration yaml according to https://a-sit-plus.github.io/warden-supreme/integration/config |
 
 The database schema `wallet_provider` (`spring.flyway.default-schema`) is created and migrated by Flyway on startup,

@@ -3,6 +3,7 @@ package at.asitplus.walletprovider
 import at.asitplus.signum.indispensable.X509SignatureAlgorithm
 import at.asitplus.signum.indispensable.asn1.ObjectIdentifier
 import at.asitplus.signum.indispensable.asn1.encoding.encodeToAsn1Primitive
+import at.asitplus.signum.indispensable.josef.ConfirmationClaim
 import at.asitplus.signum.indispensable.josef.JsonWebToken
 import at.asitplus.signum.indispensable.josef.JwsCompactTyped
 import at.asitplus.signum.indispensable.josef.io.joseCompliantSerializer
@@ -11,10 +12,12 @@ import at.asitplus.signum.indispensable.pki.Pkcs10CertificationRequestAttribute
 import at.asitplus.signum.indispensable.pki.TbsCertificationRequest
 import at.asitplus.wallet.lib.agent.EphemeralKeyWithoutCert
 import at.asitplus.wallet.lib.agent.FixedTimePeriodProvider
+import at.asitplus.wallet.lib.agent.KeyMaterial
 import at.asitplus.wallet.lib.data.rfc.tokenStatusList.StatusList
 import at.asitplus.wallet.lib.data.rfc.tokenStatusList.StatusListTokenPayload
 import at.asitplus.wallet.lib.data.rfc.tokenStatusList.primitives.TokenStatusBitSize
 import at.asitplus.wallet.lib.jws.JwsContentTypeConstants.CLIENT_ATTESTATION_POP_JWT
+import at.asitplus.wallet.lib.jws.JwsHeaderCertOrJwk
 import at.asitplus.wallet.lib.jws.JwsHeaderNone
 import at.asitplus.wallet.lib.jws.SignJwt
 import at.asitplus.wallet.lib.jws.VerifyJwsSignature
@@ -27,9 +30,12 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Instant
 
 class ApplicationTest : ProviderTestSupport() {
 
@@ -54,6 +60,36 @@ class ApplicationTest : ProviderTestSupport() {
                 val statusList = (token.payload.revocationList as StatusList)
                 assertEquals(TokenStatusBitSize.TWO, statusList.statusBitSize)
             }
+    }
+
+    /** A Wallet Instance Attestation of the provider for [instanceKey] expiring at [expiration], and its proof */
+    private suspend fun instanceAttestationAndProof(instanceKey: KeyMaterial, expiration: Instant?) =
+        SignJwt<JsonWebToken>(attestationService.keyMaterial, JwsHeaderCertOrJwk())(
+            "oauth-client-attestation+jwt",
+            JsonWebToken(
+                issuedAt = Clock.System.now() - 1.days,
+                expiration = expiration,
+                confirmationClaim = ConfirmationClaim(jsonWebKey = instanceKey.jsonWebKey),
+            ),
+            JsonWebToken.serializer(),
+        ).getOrThrow() to SignJwt<JsonWebToken>(instanceKey, headerModifier = JwsHeaderNone())(
+            CLIENT_ATTESTATION_POP_JWT,
+            JsonWebToken(nonce = attestationService.getNonce(), issuedAt = Clock.System.now()),
+            JsonWebToken.serializer(),
+        ).getOrThrow()
+
+    @Test
+    fun `an expired instance attestation is rejected`(): Unit = runBlocking {
+        val instanceKey = EphemeralKeyWithoutCert()
+
+        val (valid, validProof) = instanceAttestationAndProof(instanceKey, Clock.System.now() + 1.minutes)
+        assertTrue(attestationService.verifyInstanceAttestation(valid, validProof).getOrThrow())
+
+        val (expired, expiredProof) = instanceAttestationAndProof(instanceKey, Clock.System.now() - 1.minutes)
+        assertFalse(attestationService.verifyInstanceAttestation(expired, expiredProof).getOrThrow())
+
+        val (unlimited, unlimitedProof) = instanceAttestationAndProof(instanceKey, null)
+        assertFalse(attestationService.verifyInstanceAttestation(unlimited, unlimitedProof).getOrThrow())
     }
 
     @Test
@@ -115,7 +151,7 @@ class ApplicationTest : ProviderTestSupport() {
 
         )
 
-        val keyAttestation = attestationService.buildKeyAttestation(keyAttestationRequest) { 0 }.getOrThrow()
+        val keyAttestation = attestationService.buildKeyAttestation(keyAttestationRequest, { true }) { 0 }.getOrThrow()
         assertEquals(
             VerifyJwsSignature().invoke(keyAttestation.jws, attestationService.keyMaterial.publicKey).isSuccess,
             true

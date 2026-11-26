@@ -22,9 +22,11 @@ import at.asitplus.wallet.lib.jws.SignJwt
 import at.asitplus.wallet.lib.jws.SignJwtFun
 import at.asitplus.wallet.lib.jws.VerifyJwsSignature
 import at.asitplus.wallet.lib.oidvci.BuildClientAttestationJwt
+import at.asitplus.walletprovider.data.AttestationConfigData
 import at.asitplus.walletprovider.data.ConfigData
 import at.asitplus.walletprovider.data.InstanceAttestationRequest
 import at.asitplus.walletprovider.data.KeyAttestationRequest
+import at.asitplus.walletprovider.service.storage.AttestedKeyRegistry
 import io.github.aakira.napier.Napier
 import kotlinx.datetime.TimeZone
 import kotlinx.serialization.json.Json
@@ -101,21 +103,43 @@ interface AttestationService {
         }
     }
 
+    /**
+     * Whether [token] is a valid Wallet Instance Attestation of this provider, not expired, and [proof] proves
+     * possession of its key with a nonce of this provider. The WIA has "a time-to-live of less than 24 hours" (TS3,
+     * 2.2.1.1); an expired one is no longer evidence of the integrity of the Wallet Instance, on which issuing key
+     * attestations rests.
+     */
     suspend fun verifyInstanceAttestation(token: JwsCompactTyped<JsonWebToken>, proof: JwsCompactTyped<JsonWebToken>) =
         catchingUnwrapped {
             val clientKey = token.payload.confirmationClaim?.jsonWebKey?.toCryptoPublicKey()?.getOrThrow()!!
             val instanceAttestationValid =
                 VerifyJwsSignature().invoke(token.jws, keyMaterial.publicKey).isSuccess
+            val notExpired = token.payload.expiration?.let { it > now() } == true
             val proofValid = VerifyJwsSignature().invoke(proof.jws, clientKey).isSuccess
             val nonceValid = verifyNonce(proof.payload.nonce!!)
-            return@catchingUnwrapped (instanceAttestationValid && proofValid && nonceValid)
+            return@catchingUnwrapped (instanceAttestationValid && notExpired && proofValid && nonceValid)
         }
 
     /**
      * Verifies the instance attestation and its proof in [request] and issues the Key Attestation; [nextIndex] hands out
      * its status list index and is only called once the verification has succeeded.
+     *
+     * Carries the issuer's `c_nonce` from [request] in the key attestation (OpenID4VCI 1.0, F.1, F.3).
+     *
+     * Records keys after verification, even if building the attestation fails. The key limit and optional reuse
+     * rejection are configured in [AttestationConfigData].
      */
-    suspend fun buildKeyAttestation(request: KeyAttestationRequest, nextIndex: () -> Int) = catchingUnwrapped {
+    suspend fun buildKeyAttestation(
+        request: KeyAttestationRequest,
+        attestedKeys: AttestedKeyRegistry,
+        nextIndex: () -> Int,
+    ) = catchingUnwrapped {
+        require(request.keys.isNotEmpty()) { "No keys to attest" }
+        require(request.keys.size <= configData.attestation.maxKeysPerKeyAttestation) {
+            "More than ${configData.attestation.maxKeysPerKeyAttestation} keys to attest"
+        }
+        val thumbprints = request.keys.map { it.jwkThumbprint }
+        require(thumbprints.toSet().size == request.keys.size) { "A key occurs more than once" }
         val token = catching { JwsCompactTyped<JsonWebToken>(request.token) }.getOrThrow()
 
         val proof = catching { JwsCompactTyped<JsonWebToken>(request.proof) }.getOrThrow()
@@ -123,6 +147,12 @@ interface AttestationService {
 
         when (verifyInstanceAttestation(token, proof).getOrDefault(false)) {
             true -> {
+                if (!attestedKeys.recordAttestedKeys(thumbprints)) {
+                    require(!configData.attestation.refuseAttestedKeys) { "A key has been attested before" }
+                    Napier.w("Attesting a key again that has been attested before", tag = "AttestationService")
+                    // Record the keys not attested before, each on its own
+                    thumbprints.forEach { attestedKeys.recordAttestedKeys(listOf(it)) }
+                }
                 return@catchingUnwrapped BuildKeyAttestationJwt(
                     SignJwt(keyMaterial, JwsHeaderCertOrJwk()),
                     lifetime = configData.attestation.keyAttestation.lifetime.toKotlinDuration(),
@@ -130,6 +160,7 @@ interface AttestationService {
                     keyStorage = request.keyStorage,
                     userAuthentication = request.userAuthentication,
                     certification = configData.provider.storageCertificationInfo,
+                    nonce = request.nonce,
                     keyStorageStatus = KeyStorageStatus(
                         status = statusListReference(
                             nextIndex(), configData.buildEndpointString(
